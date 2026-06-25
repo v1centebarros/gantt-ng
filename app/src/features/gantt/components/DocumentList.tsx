@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCreateDocument,
   useDeleteDocument,
@@ -71,7 +72,18 @@ export function DocumentList() {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Loading…</p>
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {["s1", "s2", "s3", "s4"].map((id) => (
+            <li key={id}>
+              <Card className="py-4">
+                <CardHeader className="gap-2 px-4">
+                  <Skeleton className="h-5 w-40 rounded-md" />
+                  <Skeleton className="h-3.5 w-28 rounded-md" />
+                </CardHeader>
+              </Card>
+            </li>
+          ))}
+        </ul>
       ) : docs.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-12 text-center">
           <p className="mb-4 text-muted-foreground">No Gantt charts yet.</p>

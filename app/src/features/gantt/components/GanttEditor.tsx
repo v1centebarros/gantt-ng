@@ -143,7 +143,7 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
   const width = GANTT_DEFAULTS.gutterWidth + scale.totalWidth;
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col animate-in fade-in duration-200">
       <Toolbar
         title={doc.meta.title}
         onTitleChange={(title) => update((d) => renameDocument(d, title))}

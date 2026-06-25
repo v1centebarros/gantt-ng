@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Montserrat, Nunito_Sans } from "next/font/google";
+// Experimental View Transitions API (enabled via experimental.viewTransition).
+import { ViewTransition } from "react";
 import "./globals.css";
+import { ANIMATIONS_INIT_SCRIPT } from "@/features/gantt/lib/preferences";
 import { cn } from "@/lib/utils";
 import { Providers } from "./providers";
 
@@ -47,7 +50,12 @@ export default function RootLayout({
       )}
     >
       <body className="min-h-full flex flex-col">
-        <Providers>{children}</Providers>
+        {/* Apply the saved animations preference before first paint (no flash). */}
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: trusted static preference bootstrap */}
+        <script dangerouslySetInnerHTML={{ __html: ANIMATIONS_INIT_SCRIPT }} />
+        <Providers>
+          <ViewTransition>{children}</ViewTransition>
+        </Providers>
       </body>
     </html>
   );

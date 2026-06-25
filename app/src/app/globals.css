@@ -128,3 +128,41 @@
     @apply font-sans;
   }
 }
+
+/* Subtle crossfade between routes (View Transitions API). */
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 200ms;
+}
+
+/* User setting: when animations are disabled, swap/transition instantly. */
+[data-animations="off"] *,
+[data-animations="off"] *::before,
+[data-animations="off"] *::after {
+  /* biome-ignore lint/complexity/noImportantStyles: must win over component animation/transition utilities */
+  animation-duration: 0s !important;
+  /* biome-ignore lint/complexity/noImportantStyles: must win over component animation/transition utilities */
+  animation-delay: 0s !important;
+  /* biome-ignore lint/complexity/noImportantStyles: must win over component animation/transition utilities */
+  transition-duration: 0s !important;
+}
+html[data-animations="off"]::view-transition-old(*),
+html[data-animations="off"]::view-transition-new(*),
+html[data-animations="off"]::view-transition-group(*) {
+  /* biome-ignore lint/complexity/noImportantStyles: must win over the UA view-transition animations */
+  animation-duration: 0s !important;
+  /* biome-ignore lint/complexity/noImportantStyles: must win over the UA view-transition animations */
+  animation-delay: 0s !important;
+}
+
+/* Respect users who prefer reduced motion: swap instantly. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    /* biome-ignore lint/complexity/noImportantStyles: required to override the UA view-transition animations */
+    animation-duration: 0s !important;
+    /* biome-ignore lint/complexity/noImportantStyles: required to override the UA view-transition animations */
+    animation-delay: 0s !important;
+  }
+}

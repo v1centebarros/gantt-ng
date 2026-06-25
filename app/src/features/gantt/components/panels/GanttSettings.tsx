@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GANTT_DEFAULTS } from "../../constants";
+import { useAnimationsSetting } from "../../hooks/useAnimationsSetting";
 import {
   GRANULARITY_PRESETS,
   type Granularity,
@@ -35,6 +36,7 @@ export function GanttSettings({
   themeId,
   onThemeChange,
 }: GanttSettingsProps) {
+  const [animationsEnabled, setAnimationsEnabled] = useAnimationsSetting();
   const granularity = timescale.secondaryUnit.type as Granularity;
   const customSpan =
     timescale.secondaryUnit.type === "custom"
@@ -194,6 +196,19 @@ export function GanttSettings({
             </SelectContent>
           </Select>
         </div>
+      </Section>
+
+      <Section title="Preferences">
+        <Label className="flex items-center gap-2">
+          <Checkbox
+            checked={animationsEnabled}
+            onCheckedChange={(v) => setAnimationsEnabled(v === true)}
+          />
+          Enable animations
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Applies to this browser. Turns off page and UI transitions.
+        </p>
       </Section>
     </aside>
   );

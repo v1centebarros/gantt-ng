@@ -3,17 +3,14 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useDocument } from "../hooks/useDocuments";
+import { EditorSkeleton } from "./EditorSkeleton";
 import { GanttEditor } from "./GanttEditor";
 
 export function EditorLoader({ docId }: { docId: string }) {
   const { data, isLoading } = useDocument(docId);
 
   if (isLoading) {
-    return (
-      <div className="flex h-dvh items-center justify-center text-muted-foreground">
-        Loading…
-      </div>
-    );
+    return <EditorSkeleton />;
   }
 
   if (!data) {
