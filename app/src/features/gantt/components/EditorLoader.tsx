@@ -1,0 +1,34 @@
+"use client";
+
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { useDocument } from "../hooks/useDocuments";
+import { GanttEditor } from "./GanttEditor";
+
+export function EditorLoader({ docId }: { docId: string }) {
+  const { data, isLoading } = useDocument(docId);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-dvh items-center justify-center text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex h-dvh flex-col items-center justify-center gap-4">
+        <p className="text-muted-foreground">
+          This document could not be found.
+        </p>
+        <Button asChild>
+          <Link href="/">Back to documents</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  // key resets editor state when switching documents.
+  return <GanttEditor key={docId} initialFile={data} />;
+}
