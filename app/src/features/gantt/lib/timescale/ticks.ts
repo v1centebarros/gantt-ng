@@ -71,14 +71,21 @@ function alignToBoundary(
   }
 }
 
-function labelFor(date: Date, unit: TimeUnit): string {
+export interface TickOptions {
+  /** Month label rendering. Default "name". */
+  monthLabelStyle?: "name" | "number";
+}
+
+function labelFor(date: Date, unit: TimeUnit, opts: TickOptions): string {
   switch (unit.type) {
     case "day":
       return String(date.getUTCDate());
     case "week":
       return `W${isoWeek(date)}`;
     case "month":
-      return `${monthShort(date)} ${date.getUTCFullYear()}`;
+      return opts.monthLabelStyle === "number"
+        ? `${String(date.getUTCMonth() + 1).padStart(2, "0")}/${date.getUTCFullYear()}`
+        : `${monthShort(date)} ${date.getUTCFullYear()}`;
     case "quarter":
       return `Q${Math.floor(date.getUTCMonth() / 3) + 1} ${date.getUTCFullYear()}`;
     case "year":
@@ -101,6 +108,7 @@ export function generateTicks(
   endISO: string,
   unit: TimeUnit,
   weekStartsOn: WeekStart,
+  opts: TickOptions = {},
 ): Tick[] {
   const windowStart = parseDay(startISO);
   const windowEnd = parseDay(endISO);
@@ -120,7 +128,7 @@ export function generateTicks(
       ticks.push({
         start: cellStart,
         end: cellEnd,
-        label: labelFor(boundary, unit),
+        label: labelFor(boundary, unit, opts),
       });
     }
     boundary = next;

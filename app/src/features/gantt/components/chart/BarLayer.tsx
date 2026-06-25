@@ -1,18 +1,11 @@
 import type { PointerEvent } from "react";
-import { barY, type RowLayout } from "../../lib/geometry";
+import { barY, laneTopY, type RowLayout } from "../../lib/geometry";
 import { resolveBarColor, resolveTheme } from "../../lib/theme/resolve";
 import type { Scale } from "../../lib/timescale/scale";
 import { parseDay } from "../../lib/timescale/units";
 import type { Bar, Theme } from "../../types";
 import { MilestoneBar } from "./MilestoneBar";
 import { type BarDragMode, TaskBar } from "./TaskBar";
-
-/** Provisional dates for the bar currently being dragged (not yet persisted). */
-export interface BarDraft {
-  id: string;
-  start: string;
-  end: string;
-}
 
 interface BarLayerProps {
   layouts: RowLayout[];
@@ -21,7 +14,6 @@ interface BarLayerProps {
   themes: Theme[];
   selectedBarId?: string | null;
   interactive?: boolean;
-  draft?: BarDraft | null;
   onBarPointerDown?: (
     e: PointerEvent<SVGElement>,
     bar: Bar,
@@ -36,7 +28,6 @@ export function BarLayer({
   themes,
   selectedBarId,
   interactive,
-  draft,
   onBarPointerDown,
 }: BarLayerProps) {
   return (
@@ -50,12 +41,12 @@ export function BarLayer({
           );
           const color = resolveBarColor(bar, effective);
           const selected = bar.id === selectedBarId;
-          const start = draft?.id === bar.id ? draft.start : bar.start;
-          const end = draft?.id === bar.id ? draft.end : bar.end;
+          const lane = layout.laneOf[bar.id] ?? 0;
+          const top = laneTopY(layout, lane);
 
           if (bar.kind === "milestone") {
-            const cx = scale.dateToX(parseDay(start));
-            const cy = layout.top + layout.height / 2;
+            const cx = scale.dateToX(parseDay(bar.start));
+            const cy = top + layout.slotHeight / 2;
             return (
               <MilestoneBar
                 key={bar.id}
@@ -71,9 +62,9 @@ export function BarLayer({
             );
           }
 
-          const x = scale.dateToX(parseDay(start));
-          const width = scale.dateToX(parseDay(end)) - x;
-          const y = barY(layout.top, layout.height, effective.bar.height);
+          const x = scale.dateToX(parseDay(bar.start));
+          const width = scale.dateToX(parseDay(bar.end)) - x;
+          const y = barY(top, layout.slotHeight, effective.bar.height);
           return (
             <TaskBar
               key={bar.id}

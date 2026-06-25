@@ -31,6 +31,10 @@ export interface TimescaleConfig {
   pixelsPerDay: number;
   /** 0 = Sunday … 6 = Saturday. */
   weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  /** Show the fine (secondary) tier of date labels. Default true. */
+  showSecondaryLabels?: boolean;
+  /** Month rendering: full name ("Jun 2026") or numeric ("06/2026"). Default "name". */
+  monthLabelStyle?: "name" | "number";
 }
 
 export type BarKind = "task" | "milestone" | "summary";

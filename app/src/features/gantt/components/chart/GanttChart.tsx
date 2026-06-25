@@ -1,5 +1,6 @@
 import type { PointerEvent, Ref } from "react";
 import { GANTT_DEFAULTS } from "../../constants";
+import { applyDraftToRows, type BarDraft } from "../../lib/draft";
 import {
   chartHeight,
   computeRowLayouts,
@@ -8,7 +9,7 @@ import {
 import { createScale } from "../../lib/timescale/scale";
 import { generateTicks } from "../../lib/timescale/ticks";
 import type { Bar, GanttDocument, Theme } from "../../types";
-import { type BarDraft, BarLayer } from "./BarLayer";
+import { BarLayer } from "./BarLayer";
 import { GridLayer } from "./GridLayer";
 import { RowBands } from "./RowBands";
 import type { BarDragMode } from "./TaskBar";
@@ -49,23 +50,30 @@ export function GanttChart({
 }: GanttChartProps) {
   const { timescale } = document;
   const scale = createScale(timescale);
+  const showSecondary = timescale.showSecondaryLabels !== false;
   const primary = generateTicks(
     timescale.start,
     timescale.end,
     timescale.primaryUnit,
     timescale.weekStartsOn,
+    { monthLabelStyle: timescale.monthLabelStyle },
   );
   const secondary = generateTicks(
     timescale.start,
     timescale.end,
     timescale.secondaryUnit,
     timescale.weekStartsOn,
+    { monthLabelStyle: timescale.monthLabelStyle },
   );
-  const layouts = computeRowLayouts(
-    document.rows,
-    theme.header.height,
-    GANTT_DEFAULTS.rowHeight,
-  );
+  // Bake the live drag draft into the rows so lane packing and row heights
+  // reflect the in-progress gesture (overlaps grow the row instead of stacking
+  // bars on top of each other).
+  const effectiveRows = applyDraftToRows(document.rows, draft ?? null);
+  const layouts = computeRowLayouts(effectiveRows, theme.header.height, {
+    barHeight: theme.bar.height,
+    laneGap: GANTT_DEFAULTS.laneGap,
+    padding: GANTT_DEFAULTS.rowPadding,
+  });
   const gutterW = withGutter ? GANTT_DEFAULTS.gutterWidth : 0;
   const height = chartHeight(layouts, theme.header.height);
   const width = gutterW + scale.totalWidth;
@@ -113,7 +121,6 @@ export function GanttChart({
           themes={themes}
           selectedBarId={selectedBarId}
           interactive={interactive}
-          draft={draft}
           onBarPointerDown={onBarPointerDown}
         />
         <TimelineHeader
@@ -121,6 +128,7 @@ export function GanttChart({
           secondary={secondary}
           scale={scale}
           theme={theme}
+          showSecondary={showSecondary}
         />
       </g>
 

@@ -43,6 +43,29 @@ export function deleteBar(doc: GanttDocument, barId: string): GanttDocument {
   }));
 }
 
+/** Move a bar to another row, updating its denormalized rowId backref. */
+export function moveBarToRow(
+  doc: GanttDocument,
+  barId: string,
+  toRowId: string,
+): GanttDocument {
+  let moved: Bar | undefined;
+  const stripped = doc.rows.map((row) => {
+    const bar = row.bars.find((b) => b.id === barId);
+    if (!bar) return row;
+    moved = bar;
+    return { ...row, bars: row.bars.filter((b) => b.id !== barId) };
+  });
+  if (!moved || moved.rowId === toRowId) return doc;
+  const relocated: Bar = { ...moved, rowId: toRowId };
+  return {
+    ...doc,
+    rows: stripped.map((row) =>
+      row.id === toRowId ? { ...row, bars: [...row.bars, relocated] } : row,
+    ),
+  };
+}
+
 export function addRow(doc: GanttDocument, row: Row): GanttDocument {
   return { ...doc, rows: [...doc.rows, row] };
 }

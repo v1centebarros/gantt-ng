@@ -1,20 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { GANTT_DEFAULTS } from "../constants";
 import { useBarDrag } from "../hooks/useBarDrag";
 import { useImportDocument } from "../hooks/useDocuments";
 import { useGanttDocument } from "../hooks/useGanttDocument";
 import { useThemes } from "../hooks/useThemes";
+import { applyDraftToRows } from "../lib/draft";
 import { type ExportFormat, exportChart } from "../lib/export/exporters";
 import { createBar, createRow } from "../lib/factory";
-import { computeRowLayouts, sortedRows } from "../lib/geometry";
+import { computeRowLayouts, type RowLayout, sortedRows } from "../lib/geometry";
 import {
   addBar,
   addRow,
   deleteBar,
   deleteRow,
+  moveBarToRow,
   renameDocument,
   reorderRows,
   setDocumentTheme,
@@ -28,8 +30,9 @@ import { findFreeSlot } from "../lib/placement";
 import { LIGHT_THEME } from "../lib/theme/builtins";
 import { resolveTheme } from "../lib/theme/resolve";
 import { createScale } from "../lib/timescale/scale";
-import type { Bar, GanttFile, TimescaleConfig } from "../types";
+import type { Bar, GanttFile } from "../types";
 import { GanttChart } from "./chart/GanttChart";
+import { GanttSettings } from "./panels/GanttSettings";
 import { Inspector } from "./panels/Inspector";
 import { RowList } from "./panels/RowList";
 import { Toolbar } from "./panels/Toolbar";
@@ -41,18 +44,11 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
   const importDoc = useImportDocument();
   const [selectedBarId, setSelectedBarId] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const layoutsRef = useRef<RowLayout[]>([]);
 
   const theme = resolveTheme(doc.themeId, themes, LIGHT_THEME);
   const scale = useMemo(() => createScale(doc.timescale), [doc.timescale]);
-  const layouts = useMemo(
-    () =>
-      computeRowLayouts(
-        doc.rows,
-        theme.header.height,
-        GANTT_DEFAULTS.rowHeight,
-      ),
-    [doc.rows, theme.header.height],
-  );
 
   const selectedBar = useMemo<Bar | null>(() => {
     if (!selectedBarId) return null;
@@ -63,11 +59,47 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
     return null;
   }, [doc.rows, selectedBarId]);
 
+  // Map a client-Y coordinate to the row under it (for cross-row bar drags).
+  // Reads the latest layout via a ref so the callback stays stable and the
+  // drag hook and layout don't form a dependency cycle.
+  const getRowIdAtClientY = useCallback((clientY: number): string | null => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const y = clientY - svg.getBoundingClientRect().top;
+    for (const l of layoutsRef.current) {
+      if (y >= l.top && y < l.top + l.height) return l.row.id;
+    }
+    const last = layoutsRef.current[layoutsRef.current.length - 1];
+    if (last && y >= last.top + last.height) return last.row.id;
+    return null;
+  }, []);
+
   const drag = useBarDrag({
     pixelsPerDay: doc.timescale.pixelsPerDay,
-    onCommit: (barId, start, end) =>
-      update((d) => updateBarDates(d, barId, start, end)),
+    getRowIdAtClientY,
+    onCommit: (barId, start, end, rowId) =>
+      update((d) => {
+        const dated = updateBarDates(d, barId, start, end);
+        return rowId ? moveBarToRow(dated, barId, rowId) : dated;
+      }),
   });
+
+  // Bake the live drag draft into rows so lane packing + row heights grow as a
+  // dragged bar overlaps others. The gutter and chart share this layout.
+  const effectiveRows = useMemo(
+    () => applyDraftToRows(doc.rows, drag.draft),
+    [doc.rows, drag.draft],
+  );
+  const layouts = useMemo(
+    () =>
+      computeRowLayouts(effectiveRows, theme.header.height, {
+        barHeight: theme.bar.height,
+        laneGap: GANTT_DEFAULTS.laneGap,
+        padding: GANTT_DEFAULTS.rowPadding,
+      }),
+    [effectiveRows, theme.header.height, theme.bar.height],
+  );
+  layoutsRef.current = layouts;
 
   // --- Row operations ------------------------------------------------------
   function handleAddRow() {
@@ -117,13 +149,6 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
         onTitleChange={(title) => update((d) => renameDocument(d, title))}
         onAddRow={handleAddRow}
         onAddTask={handleAddTask}
-        themes={themes}
-        themeId={doc.themeId}
-        onThemeChange={(id) => update((d) => setDocumentTheme(d, id))}
-        timescale={doc.timescale}
-        onTimescaleChange={(patch: Partial<TimescaleConfig>) =>
-          update((d) => updateTimescale(d, patch))
-        }
         onExportImage={handleExportImage}
         onExportGantt={handleExportGantt}
         onImportGantt={handleImportGantt}
@@ -157,6 +182,7 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
               interactive
               selectedBarId={selectedBarId}
               draft={drag.draft}
+              svgRef={svgRef}
               onBarPointerDown={(e, bar, mode) => {
                 setSelectedBarId(bar.id);
                 drag.onBarPointerDown(e, bar, mode);
@@ -166,20 +192,30 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
           </div>
         </div>
 
-        <Inspector
-          bar={selectedBar}
-          theme={theme}
-          onChange={(patch) =>
-            selectedBar && update((d) => updateBar(d, selectedBar.id, patch))
-          }
-          onDelete={() => {
-            if (selectedBar) {
+        {selectedBar ? (
+          <Inspector
+            bar={selectedBar}
+            theme={theme}
+            onChange={(patch) =>
+              update((d) => updateBar(d, selectedBar.id, patch))
+            }
+            onDelete={() => {
               update((d) => deleteBar(d, selectedBar.id));
               setSelectedBarId(null);
+            }}
+            onClose={() => setSelectedBarId(null)}
+          />
+        ) : (
+          <GanttSettings
+            timescale={doc.timescale}
+            onTimescaleChange={(patch) =>
+              update((d) => updateTimescale(d, patch))
             }
-          }}
-          onClose={() => setSelectedBarId(null)}
-        />
+            themes={themes}
+            themeId={doc.themeId}
+            onThemeChange={(id) => update((d) => setDocumentTheme(d, id))}
+          />
+        )}
       </div>
     </div>
   );

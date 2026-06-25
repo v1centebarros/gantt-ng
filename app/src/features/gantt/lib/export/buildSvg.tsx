@@ -22,11 +22,11 @@ export function buildStandaloneSvg(
   themes: Theme[],
 ): StandaloneSvg {
   const scale = createScale(document.timescale);
-  const layouts = computeRowLayouts(
-    document.rows,
-    theme.header.height,
-    GANTT_DEFAULTS.rowHeight,
-  );
+  const layouts = computeRowLayouts(document.rows, theme.header.height, {
+    barHeight: theme.bar.height,
+    laneGap: GANTT_DEFAULTS.laneGap,
+    padding: GANTT_DEFAULTS.rowPadding,
+  });
   const width = GANTT_DEFAULTS.gutterWidth + scale.totalWidth;
   const height = chartHeight(layouts, theme.header.height);
 

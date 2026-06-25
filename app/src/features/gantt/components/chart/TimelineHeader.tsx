@@ -7,6 +7,8 @@ interface TimelineHeaderProps {
   secondary: Tick[];
   scale: Scale;
   theme: Theme;
+  /** When false, only the coarse tier is shown (primary uses full height). */
+  showSecondary?: boolean;
 }
 
 /** Two-tier date header. The top tier is coarse (primaryUnit), bottom is fine. */
@@ -15,6 +17,7 @@ export function TimelineHeader({
   secondary,
   scale,
   theme,
+  showSecondary = true,
 }: TimelineHeaderProps) {
   const { header, typography } = theme;
   const tierH = header.height / 2;
@@ -32,20 +35,21 @@ export function TimelineHeader({
         primary,
         scale,
         0,
-        tierH,
+        showSecondary ? tierH : header.height,
         theme,
         typography.headerFontSize,
         600,
       )}
-      {renderTier(
-        secondary,
-        scale,
-        tierH,
-        tierH,
-        theme,
-        typography.headerFontSize - 1,
-        400,
-      )}
+      {showSecondary &&
+        renderTier(
+          secondary,
+          scale,
+          tierH,
+          tierH,
+          theme,
+          typography.headerFontSize - 1,
+          400,
+        )}
       <line
         x1={0}
         y1={header.height}

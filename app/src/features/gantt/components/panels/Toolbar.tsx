@@ -9,24 +9,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import type { ExportFormat } from "../../lib/export/exporters";
-import type { Theme, TimescaleConfig } from "../../types";
+import { EditableTitle } from "./EditableTitle";
 import { ExportMenu } from "./ExportMenu";
-import { ThemeControls } from "./ThemeControls";
-import { TimescaleControls } from "./TimescaleControls";
 
 interface ToolbarProps {
   title: string;
   onTitleChange: (title: string) => void;
   onAddRow: () => void;
   onAddTask: () => void;
-  themes: Theme[];
-  themeId: string;
-  onThemeChange: (id: string) => void;
-  timescale: TimescaleConfig;
-  onTimescaleChange: (patch: Partial<TimescaleConfig>) => void;
   onExportImage: (format: ExportFormat) => void | Promise<void>;
   onExportGantt: () => void;
   onImportGantt: (file: File) => void;
@@ -38,11 +30,6 @@ export function Toolbar({
   onTitleChange,
   onAddRow,
   onAddTask,
-  themes,
-  themeId,
-  onThemeChange,
-  timescale,
-  onTimescaleChange,
   onExportImage,
   onExportGantt,
   onImportGantt,
@@ -60,11 +47,10 @@ export function Toolbar({
           <ArrowLeft className="size-4" />
         </Link>
       </Button>
-      <Input
+      <EditableTitle
         value={title}
-        onChange={(e) => onTitleChange(e.target.value)}
-        className="w-56 font-medium"
-        aria-label="Document title"
+        onCommit={onTitleChange}
+        placeholder="Untitled Gantt"
       />
       <span className="flex items-center gap-1 text-xs text-muted-foreground">
         {isSaving ? (
@@ -92,15 +78,7 @@ export function Toolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
-      <TimescaleControls timescale={timescale} onChange={onTimescaleChange} />
-
       <div className="ml-auto flex items-center gap-2">
-        <ThemeControls
-          themes={themes}
-          value={themeId}
-          onChange={onThemeChange}
-        />
         <ExportMenu
           onExportImage={onExportImage}
           onExportGantt={onExportGantt}

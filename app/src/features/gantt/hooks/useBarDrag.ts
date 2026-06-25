@@ -1,8 +1,8 @@
 "use client";
 
 import { type PointerEvent, useCallback, useRef, useState } from "react";
-import type { BarDraft } from "../components/chart/BarLayer";
 import type { BarDragMode } from "../components/chart/TaskBar";
+import type { BarDraft } from "../lib/draft";
 import { addDays, diffDays, formatDay, parseDay } from "../lib/timescale/units";
 import type { Bar } from "../types";
 
@@ -16,18 +16,31 @@ interface DragState {
 
 interface UseBarDragOptions {
   pixelsPerDay: number;
-  /** Commit final dates on pointer-up. */
-  onCommit: (barId: string, start: string, end: string) => void;
+  /** Commit final dates (and target row, if moved) on pointer-up. */
+  onCommit: (barId: string, start: string, end: string, rowId?: string) => void;
+  /** Resolve the row id under a client-Y coordinate (for cross-row moves). */
+  getRowIdAtClientY?: (clientY: number) => string | null;
 }
 
 /**
  * Custom pointer-based move/resize for timeline bars. During the gesture only a
  * local `draft` updates (60fps, no persistence); the committed value is written
  * once on pointer-up via `onCommit`. Whole-day snapping is applied throughout.
+ * In "move" mode the bar can also be dragged vertically onto another row.
  */
-export function useBarDrag({ pixelsPerDay, onCommit }: UseBarDragOptions) {
+export function useBarDrag({
+  pixelsPerDay,
+  onCommit,
+  getRowIdAtClientY,
+}: UseBarDragOptions) {
   const [draft, setDraft] = useState<BarDraft | null>(null);
   const stateRef = useRef<DragState | null>(null);
+  const draftRef = useRef<BarDraft | null>(null);
+
+  const setBoth = useCallback((next: BarDraft | null) => {
+    draftRef.current = next;
+    setDraft(next);
+  }, []);
 
   const onBarPointerDown = useCallback(
     (e: PointerEvent<SVGElement>, bar: Bar, mode: BarDragMode) => {
@@ -40,9 +53,9 @@ export function useBarDrag({ pixelsPerDay, onCommit }: UseBarDragOptions) {
         origStart: parseDay(bar.start),
         origEnd: parseDay(bar.end),
       };
-      setDraft({ id: bar.id, start: bar.start, end: bar.end });
+      setBoth({ id: bar.id, start: bar.start, end: bar.end, rowId: bar.rowId });
     },
-    [],
+    [setBoth],
   );
 
   const onPointerMove = useCallback(
@@ -52,10 +65,12 @@ export function useBarDrag({ pixelsPerDay, onCommit }: UseBarDragOptions) {
       const deltaDays = Math.round((e.clientX - s.startClientX) / pixelsPerDay);
       let start = s.origStart;
       let end = s.origEnd;
+      let rowId = s.bar.rowId;
 
       if (s.mode === "move") {
         start = addDays(s.origStart, deltaDays);
         end = addDays(s.origEnd, deltaDays);
+        rowId = getRowIdAtClientY?.(e.clientY) ?? s.bar.rowId;
       } else if (s.mode === "resize-start") {
         start = addDays(s.origStart, deltaDays);
         if (diffDays(start, s.origEnd) < 1) start = addDays(s.origEnd, -1);
@@ -65,17 +80,23 @@ export function useBarDrag({ pixelsPerDay, onCommit }: UseBarDragOptions) {
         if (diffDays(s.origStart, end) < 1) end = addDays(s.origStart, 1);
         start = s.origStart;
       }
-      setDraft({ id: s.bar.id, start: formatDay(start), end: formatDay(end) });
+      setBoth({
+        id: s.bar.id,
+        start: formatDay(start),
+        end: formatDay(end),
+        rowId,
+      });
     },
-    [pixelsPerDay],
+    [pixelsPerDay, getRowIdAtClientY, setBoth],
   );
 
   const onPointerUp = useCallback(() => {
     const s = stateRef.current;
-    if (s && draft) onCommit(s.bar.id, draft.start, draft.end);
+    const d = draftRef.current;
+    if (s && d) onCommit(s.bar.id, d.start, d.end, d.rowId);
     stateRef.current = null;
-    setDraft(null);
-  }, [draft, onCommit]);
+    setBoth(null);
+  }, [onCommit, setBoth]);
 
   return { draft, onBarPointerDown, onPointerMove, onPointerUp };
 }

@@ -4,8 +4,10 @@ export const GANTT_DEFAULTS = {
   initialRows: 5,
   /** Default duration (days) for a newly created task. */
   newTaskDays: 7,
-  /** Default row band height in px. */
-  rowHeight: 40,
+  /** Vertical padding (px) above/below the lanes within a row band. */
+  rowPadding: 9,
+  /** Vertical gap (px) between stacked task bars in a row. */
+  laneGap: 9,
   /** Left label-gutter width in px. */
   gutterWidth: 220,
   /** Default zoom: px per day. */
