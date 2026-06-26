@@ -75,8 +75,10 @@ export function Toolbar({
         )}
       </span>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
-      <DropdownMenu>
+
+      <div className="ml-auto flex items-center gap-2">
+
+        <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline">
             <Plus className="size-4" /> Add
@@ -87,9 +89,9 @@ export function Toolbar({
           <DropdownMenuItem onClick={onAddTask}>New task</DropdownMenuItem>
           <DropdownMenuItem onClick={onAddRow}>New row</DropdownMenuItem>
         </DropdownMenuContent>
-      </DropdownMenu>
-
-      <div className="ml-auto flex items-center gap-2">
+        </DropdownMenu>
+        
+        
         <ExportMenu
           onExportImage={onExportImage}
           onExportGantt={onExportGantt}

@@ -4,6 +4,14 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
@@ -11,6 +19,7 @@ import {
 import { GANTT_DEFAULTS } from "../constants";
 import { useBarDrag } from "../hooks/useBarDrag";
 import { useImportDocument } from "../hooks/useDocuments";
+import { useEditorShortcuts } from "../hooks/useEditorShortcuts";
 import { useGanttDocument } from "../hooks/useGanttDocument";
 import { useThemes } from "../hooks/useThemes";
 import { applyDraftToRows } from "../lib/draft";
@@ -45,7 +54,8 @@ import { Toolbar } from "./panels/Toolbar";
 
 export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
   const router = useRouter();
-  const { doc, update, isSaving } = useGanttDocument(initialFile);
+  const { doc, update, undo, redo, canUndo, canRedo, isSaving } =
+    useGanttDocument(initialFile);
   const { data: themes = [] } = useThemes();
   const importDoc = useImportDocument();
   const [selectedBarId, setSelectedBarId] = useState<string | null>(null);
@@ -67,6 +77,18 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
     setSelectedBarId(barId);
     sidebarRef.current?.expand();
   }
+
+  const deleteSelectedBar = useCallback(() => {
+    if (!selectedBarId) return;
+    update((d) => deleteBar(d, selectedBarId));
+    setSelectedBarId(null);
+  }, [update, selectedBarId]);
+
+  useEditorShortcuts({
+    onUndo: undo,
+    onRedo: redo,
+    onDelete: deleteSelectedBar,
+  });
 
   const theme = resolveTheme(doc.themeId, themes, LIGHT_THEME);
   const scale = useMemo(() => createScale(doc.timescale), [doc.timescale]);
@@ -184,41 +206,64 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
         className="min-h-0 flex-1"
       >
         <ResizablePanel defaultSize={75} minSize={30} className="min-w-0">
-          <div
-            className="h-full overflow-auto"
-            onPointerMove={drag.onPointerMove}
-            onPointerUp={drag.onPointerUp}
-          >
-            <div className="flex" style={{ width }}>
-              <RowList
-                layouts={layouts}
-                headerHeight={theme.header.height}
-                gutterWidth={GANTT_DEFAULTS.gutterWidth}
-                selectedRowId={selectedRowId}
-                onReorder={(ids) => update((d) => reorderRows(d, ids))}
-                onSelectRow={setSelectedRowId}
-                onRenameRow={(id, label) =>
-                  update((d) => updateRow(d, id, { label }))
-                }
-                onDeleteRow={(id) => update((d) => deleteRow(d, id))}
-                onAddBar={handleAddBar}
-              />
-              <GanttChart
-                document={doc}
-                theme={theme}
-                themes={themes}
-                interactive
-                selectedBarId={selectedBarId}
-                draft={drag.draft}
-                svgRef={svgRef}
-                onBarPointerDown={(e, bar, mode) => {
-                  selectBar(bar.id);
-                  drag.onBarPointerDown(e, bar, mode);
-                }}
-                onBackgroundPointerDown={() => setSelectedBarId(null)}
-              />
-            </div>
-          </div>
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div
+                className="h-full overflow-auto"
+                onPointerMove={drag.onPointerMove}
+                onPointerUp={drag.onPointerUp}
+              >
+                <div className="flex" style={{ width }}>
+                  <RowList
+                    layouts={layouts}
+                    headerHeight={theme.header.height}
+                    gutterWidth={GANTT_DEFAULTS.gutterWidth}
+                    selectedRowId={selectedRowId}
+                    onReorder={(ids) => update((d) => reorderRows(d, ids))}
+                    onSelectRow={setSelectedRowId}
+                    onRenameRow={(id, label) =>
+                      update((d) => updateRow(d, id, { label }))
+                    }
+                    onDeleteRow={(id) => update((d) => deleteRow(d, id))}
+                    onAddBar={handleAddBar}
+                  />
+                  <GanttChart
+                    document={doc}
+                    theme={theme}
+                    themes={themes}
+                    interactive
+                    selectedBarId={selectedBarId}
+                    draft={drag.draft}
+                    svgRef={svgRef}
+                    onBarPointerDown={(e, bar, mode) => {
+                      selectBar(bar.id);
+                      drag.onBarPointerDown(e, bar, mode);
+                    }}
+                    onBackgroundPointerDown={() => setSelectedBarId(null)}
+                  />
+                </div>
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem disabled={!canUndo} onSelect={undo}>
+                Undo
+                <ContextMenuShortcut>⌘Z</ContextMenuShortcut>
+              </ContextMenuItem>
+              <ContextMenuItem disabled={!canRedo} onSelect={redo}>
+                Redo
+                <ContextMenuShortcut>⇧⌘Z</ContextMenuShortcut>
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                variant="destructive"
+                disabled={!selectedBarId}
+                onSelect={deleteSelectedBar}
+              >
+                Delete task
+                <ContextMenuShortcut>⌫</ContextMenuShortcut>
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         </ResizablePanel>
 
         <ResizableHandle />
@@ -242,10 +287,7 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
               onChange={(patch) =>
                 update((d) => updateBar(d, selectedBar.id, patch))
               }
-              onDelete={() => {
-                update((d) => deleteBar(d, selectedBar.id));
-                setSelectedBarId(null);
-              }}
+              onDelete={deleteSelectedBar}
               onClose={() => setSelectedBarId(null)}
             />
           ) : (

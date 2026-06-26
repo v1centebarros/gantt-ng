@@ -63,7 +63,6 @@ export function ExportMenu({
           <DropdownMenuItem onClick={() => run("png")}>PNG</DropdownMenuItem>
           <DropdownMenuItem onClick={() => run("jpeg")}>JPEG</DropdownMenuItem>
           <DropdownMenuItem onClick={() => run("pdf")}>PDF</DropdownMenuItem>
-          <DropdownMenuSeparator />
           <DropdownMenuLabel>Document</DropdownMenuLabel>
           <DropdownMenuItem onClick={onExportGantt}>
             <FileDown className="size-4" /> Export .gantt

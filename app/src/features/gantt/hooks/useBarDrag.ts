@@ -45,6 +45,9 @@ export function useBarDrag({
   const onBarPointerDown = useCallback(
     (e: PointerEvent<SVGElement>, bar: Bar, mode: BarDragMode) => {
       e.stopPropagation();
+      // Only the primary button drags; other buttons (e.g. right-click for the
+      // context menu) keep the selection but must not start a gesture.
+      if (e.button !== 0) return;
       (e.target as Element).setPointerCapture?.(e.pointerId);
       stateRef.current = {
         bar,
