@@ -66,7 +66,7 @@ export function GanttSettings({
   }
 
   return (
-    <aside className="w-72 shrink-0 space-y-6 overflow-y-auto border-l border-border p-4">
+    <aside className="h-full w-full space-y-6 overflow-y-auto p-4">
       <div>
         <h2 className="text-sm font-semibold">Gantt settings</h2>
         <p className="text-xs text-muted-foreground">

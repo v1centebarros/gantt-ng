@@ -30,7 +30,7 @@ export function Inspector({
 }: InspectorProps) {
   if (!bar) {
     return (
-      <aside className="w-72 shrink-0 border-l border-border p-4 text-sm text-muted-foreground">
+      <aside className="h-full w-full p-4 text-sm text-muted-foreground">
         Select a bar to edit it, or add a task to a row.
       </aside>
     );
@@ -39,7 +39,7 @@ export function Inspector({
   const paletteKeys = Object.keys(theme.colors.palette);
 
   return (
-    <aside className="w-72 shrink-0 space-y-4 border-l border-border p-4">
+    <aside className="h-full w-full space-y-4 overflow-y-auto p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">Edit task</h2>
         <Button

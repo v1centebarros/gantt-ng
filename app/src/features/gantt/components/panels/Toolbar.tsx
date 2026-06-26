@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowLeft, Check, ChevronDown, Loader2, Plus } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  Loader2,
+  PanelRight,
+  Plus,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +30,8 @@ interface ToolbarProps {
   onExportGantt: () => void;
   onImportGantt: (file: File) => void;
   isSaving: boolean;
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
 }
 
 export function Toolbar({
@@ -34,6 +43,8 @@ export function Toolbar({
   onExportGantt,
   onImportGantt,
   isSaving,
+  sidebarCollapsed,
+  onToggleSidebar,
 }: ToolbarProps) {
   return (
     <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
@@ -84,6 +95,15 @@ export function Toolbar({
           onExportGantt={onExportGantt}
           onImportGantt={onImportGantt}
         />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar}
+          aria-label={sidebarCollapsed ? "Show side panel" : "Hide side panel"}
+          aria-pressed={!sidebarCollapsed}
+        >
+          <PanelRight className="size-4" />
+        </Button>
       </div>
     </header>
   );

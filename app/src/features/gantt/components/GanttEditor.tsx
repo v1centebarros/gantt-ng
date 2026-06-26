@@ -2,6 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { ImperativePanelHandle } from "react-resizable-panels";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { GANTT_DEFAULTS } from "../constants";
 import { useBarDrag } from "../hooks/useBarDrag";
 import { useImportDocument } from "../hooks/useDocuments";
@@ -46,6 +52,21 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const layoutsRef = useRef<RowLayout[]>([]);
+  const sidebarRef = useRef<ImperativePanelHandle>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  function toggleSidebar() {
+    const panel = sidebarRef.current;
+    if (!panel) return;
+    if (panel.isCollapsed()) panel.expand();
+    else panel.collapse();
+  }
+
+  // Select a bar and make sure the inspector is visible (expand if collapsed).
+  function selectBar(barId: string) {
+    setSelectedBarId(barId);
+    sidebarRef.current?.expand();
+  }
 
   const theme = resolveTheme(doc.themeId, themes, LIGHT_THEME);
   const scale = useMemo(() => createScale(doc.timescale), [doc.timescale]);
@@ -115,7 +136,7 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
     const bar = createBar(rowId, start, end);
     update((d) => addBar(d, rowId, bar));
     setSelectedRowId(rowId);
-    setSelectedBarId(bar.id);
+    selectBar(bar.id);
   }
   function handleAddBar(rowId: string) {
     const row = doc.rows.find((r) => r.id === rowId);
@@ -153,70 +174,93 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
         onExportGantt={handleExportGantt}
         onImportGantt={handleImportGantt}
         isSaving={isSaving}
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={toggleSidebar}
       />
 
-      <div className="flex min-h-0 flex-1">
-        <div
-          className="min-w-0 flex-1 overflow-auto"
-          onPointerMove={drag.onPointerMove}
-          onPointerUp={drag.onPointerUp}
-        >
-          <div className="flex" style={{ width }}>
-            <RowList
-              layouts={layouts}
-              headerHeight={theme.header.height}
-              gutterWidth={GANTT_DEFAULTS.gutterWidth}
-              selectedRowId={selectedRowId}
-              onReorder={(ids) => update((d) => reorderRows(d, ids))}
-              onSelectRow={setSelectedRowId}
-              onRenameRow={(id, label) =>
-                update((d) => updateRow(d, id, { label }))
-              }
-              onDeleteRow={(id) => update((d) => deleteRow(d, id))}
-              onAddBar={handleAddBar}
-            />
-            <GanttChart
-              document={doc}
-              theme={theme}
-              themes={themes}
-              interactive
-              selectedBarId={selectedBarId}
-              draft={drag.draft}
-              svgRef={svgRef}
-              onBarPointerDown={(e, bar, mode) => {
-                setSelectedBarId(bar.id);
-                drag.onBarPointerDown(e, bar, mode);
-              }}
-              onBackgroundPointerDown={() => setSelectedBarId(null)}
-            />
+      <ResizablePanelGroup
+        direction="horizontal"
+        autoSaveId="gantt-editor-panels"
+        className="min-h-0 flex-1"
+      >
+        <ResizablePanel defaultSize={75} minSize={30} className="min-w-0">
+          <div
+            className="h-full overflow-auto"
+            onPointerMove={drag.onPointerMove}
+            onPointerUp={drag.onPointerUp}
+          >
+            <div className="flex" style={{ width }}>
+              <RowList
+                layouts={layouts}
+                headerHeight={theme.header.height}
+                gutterWidth={GANTT_DEFAULTS.gutterWidth}
+                selectedRowId={selectedRowId}
+                onReorder={(ids) => update((d) => reorderRows(d, ids))}
+                onSelectRow={setSelectedRowId}
+                onRenameRow={(id, label) =>
+                  update((d) => updateRow(d, id, { label }))
+                }
+                onDeleteRow={(id) => update((d) => deleteRow(d, id))}
+                onAddBar={handleAddBar}
+              />
+              <GanttChart
+                document={doc}
+                theme={theme}
+                themes={themes}
+                interactive
+                selectedBarId={selectedBarId}
+                draft={drag.draft}
+                svgRef={svgRef}
+                onBarPointerDown={(e, bar, mode) => {
+                  selectBar(bar.id);
+                  drag.onBarPointerDown(e, bar, mode);
+                }}
+                onBackgroundPointerDown={() => setSelectedBarId(null)}
+              />
+            </div>
           </div>
-        </div>
+        </ResizablePanel>
 
-        {selectedBar ? (
-          <Inspector
-            bar={selectedBar}
-            theme={theme}
-            onChange={(patch) =>
-              update((d) => updateBar(d, selectedBar.id, patch))
-            }
-            onDelete={() => {
-              update((d) => deleteBar(d, selectedBar.id));
-              setSelectedBarId(null);
-            }}
-            onClose={() => setSelectedBarId(null)}
-          />
-        ) : (
-          <GanttSettings
-            timescale={doc.timescale}
-            onTimescaleChange={(patch) =>
-              update((d) => updateTimescale(d, patch))
-            }
-            themes={themes}
-            themeId={doc.themeId}
-            onThemeChange={(id) => update((d) => setDocumentTheme(d, id))}
-          />
-        )}
-      </div>
+        <ResizableHandle />
+
+        <ResizablePanel
+          ref={sidebarRef}
+          order={2}
+          defaultSize={25}
+          minSize={16}
+          maxSize={40}
+          collapsible
+          collapsedSize={0}
+          onCollapse={() => setSidebarCollapsed(true)}
+          onExpand={() => setSidebarCollapsed(false)}
+          className="min-w-0 border-l border-border"
+        >
+          {selectedBar ? (
+            <Inspector
+              bar={selectedBar}
+              theme={theme}
+              onChange={(patch) =>
+                update((d) => updateBar(d, selectedBar.id, patch))
+              }
+              onDelete={() => {
+                update((d) => deleteBar(d, selectedBar.id));
+                setSelectedBarId(null);
+              }}
+              onClose={() => setSelectedBarId(null)}
+            />
+          ) : (
+            <GanttSettings
+              timescale={doc.timescale}
+              onTimescaleChange={(patch) =>
+                update((d) => updateTimescale(d, patch))
+              }
+              themes={themes}
+              themeId={doc.themeId}
+              onThemeChange={(id) => update((d) => setDocumentTheme(d, id))}
+            />
+          )}
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
