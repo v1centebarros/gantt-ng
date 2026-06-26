@@ -1,6 +1,6 @@
 "use client";
 
-import { ZoomIn, ZoomOut } from "lucide-react";
+import { Plus, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,13 @@ import {
   GRANULARITY_PRESETS,
   type Granularity,
 } from "../../lib/timescale/presets";
-import type { Theme, TimescaleConfig } from "../../types";
+import type {
+  DateMarker,
+  DisplaySettings,
+  StrokeStyle,
+  Theme,
+  TimescaleConfig,
+} from "../../types";
 import { ThemeControls } from "./ThemeControls";
 
 interface GanttSettingsProps {
@@ -27,6 +33,13 @@ interface GanttSettingsProps {
   themes: Theme[];
   themeId: string;
   onThemeChange: (id: string) => void;
+  theme: Theme;
+  display: DisplaySettings;
+  onDisplayChange: (patch: Partial<DisplaySettings>) => void;
+  markers: DateMarker[];
+  onAddMarker: () => void;
+  onUpdateMarker: (id: string, patch: Partial<DateMarker>) => void;
+  onDeleteMarker: (id: string) => void;
 }
 
 export function GanttSettings({
@@ -35,6 +48,13 @@ export function GanttSettings({
   themes,
   themeId,
   onThemeChange,
+  theme,
+  display,
+  onDisplayChange,
+  markers,
+  onAddMarker,
+  onUpdateMarker,
+  onDeleteMarker,
 }: GanttSettingsProps) {
   const [animationsEnabled, setAnimationsEnabled] = useAnimationsSetting();
   const granularity = timescale.secondaryUnit.type as Granularity;
@@ -198,6 +218,75 @@ export function GanttSettings({
         </div>
       </Section>
 
+      <Section title="Markers">
+        <Label className="flex items-center gap-2">
+          <Checkbox
+            checked={display.showTodayMarker}
+            onCheckedChange={(v) =>
+              onDisplayChange({ showTodayMarker: v === true })
+            }
+          />
+          Show today marker
+        </Label>
+
+        <div className="mt-3 space-y-2">
+          {markers.map((marker) => (
+            <MarkerRow
+              key={marker.id}
+              marker={marker}
+              theme={theme}
+              onUpdate={(patch) => onUpdateMarker(marker.id, patch)}
+              onDelete={() => onDeleteMarker(marker.id)}
+            />
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={onAddMarker}
+          >
+            <Plus className="size-4" /> Add marker
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Tip: right-click the chart to add a marker at that date.
+          </p>
+        </div>
+      </Section>
+
+      <Section title="Legend">
+        <Label className="flex items-center gap-2">
+          <Checkbox
+            checked={display.legend.show}
+            onCheckedChange={(v) =>
+              onDisplayChange({
+                legend: { ...display.legend, show: v === true },
+              })
+            }
+          />
+          Show legend
+        </Label>
+
+        <div className="mt-3 space-y-1.5">
+          <Label>Group by</Label>
+          <Select
+            value={display.legend.groupBy}
+            onValueChange={(v) =>
+              onDisplayChange({
+                legend: { ...display.legend, groupBy: v as "label" | "color" },
+              })
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="label">Task name</SelectItem>
+              <SelectItem value="color">Color</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </Section>
+
       <Section title="Preferences">
         <Label className="flex items-center gap-2">
           <Checkbox
@@ -211,6 +300,116 @@ export function GanttSettings({
         </p>
       </Section>
     </aside>
+  );
+}
+
+const DEFAULT_MARKER_COLOR = "default";
+
+function MarkerRow({
+  marker,
+  theme,
+  onUpdate,
+  onDelete,
+}: {
+  marker: DateMarker;
+  theme: Theme;
+  onUpdate: (patch: Partial<DateMarker>) => void;
+  onDelete: () => void;
+}) {
+  const paletteKeys = Object.keys(theme.colors.palette);
+  return (
+    <div className="space-y-1.5 rounded-md border border-border p-2">
+      <div className="flex items-center gap-2">
+        <Input
+          type="date"
+          value={marker.date}
+          onChange={(e) => onUpdate({ date: e.target.value })}
+          className="flex-1"
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDelete}
+          aria-label="Remove marker"
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </div>
+      <Input
+        value={marker.label ?? ""}
+        placeholder="Label"
+        onChange={(e) => onUpdate({ label: e.target.value })}
+      />
+      <Label className="flex items-center gap-2 font-normal">
+        <Checkbox
+          checked={marker.showLabel !== false}
+          onCheckedChange={(v) => onUpdate({ showLabel: v === true })}
+        />
+        Show label on chart
+      </Label>
+      <Select
+        value={marker.color ?? DEFAULT_MARKER_COLOR}
+        onValueChange={(v) =>
+          onUpdate({ color: v === DEFAULT_MARKER_COLOR ? undefined : v })
+        }
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={DEFAULT_MARKER_COLOR}>
+            <span className="flex items-center gap-2">
+              <span
+                className="inline-block size-3 rounded-full"
+                style={{ backgroundColor: theme.colors.accent }}
+              />
+              Default
+            </span>
+          </SelectItem>
+          {paletteKeys.map((key) => (
+            <SelectItem key={key} value={`palette.${key}`}>
+              <span className="flex items-center gap-2">
+                <span
+                  className="inline-block size-3 rounded-full"
+                  style={{ backgroundColor: theme.colors.palette[key] }}
+                />
+                {key}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <div className="flex gap-2">
+        <Select
+          value={marker.strokeStyle ?? "solid"}
+          onValueChange={(v) => onUpdate({ strokeStyle: v as StrokeStyle })}
+        >
+          <SelectTrigger className="flex-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="solid">Solid</SelectItem>
+            <SelectItem value="dashed">Dashed</SelectItem>
+            <SelectItem value="dotted">Dotted</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          type="number"
+          min={0.5}
+          max={10}
+          step="any"
+          aria-label="Marker width"
+          className="w-20"
+          value={marker.strokeWidth ?? 2}
+          onChange={(e) =>
+            onUpdate({
+              strokeWidth: Math.max(0.5, Math.min(10, Number(e.target.value))),
+            })
+          }
+        />
+      </div>
+    </div>
   );
 }
 

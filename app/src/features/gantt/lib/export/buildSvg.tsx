@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { GanttChart } from "../../components/chart/GanttChart";
 import { GANTT_DEFAULTS } from "../../constants";
-import type { GanttDocument, Theme } from "../../types";
+import { type GanttDocument, resolveDisplay, type Theme } from "../../types";
 import { chartHeight, computeRowLayouts } from "../geometry";
+import { buildLegend, legendBlockHeight } from "../legend";
 import { createScale } from "../timescale/scale";
 
 export interface StandaloneSvg {
@@ -28,7 +29,15 @@ export function buildStandaloneSvg(
     padding: GANTT_DEFAULTS.rowPadding,
   });
   const width = GANTT_DEFAULTS.gutterWidth + scale.totalWidth;
-  const height = chartHeight(layouts, theme.header.height);
+  // Match GanttChart's own height computation so raster/PDF exports aren't
+  // cropped when the legend is shown.
+  const display = resolveDisplay(document);
+  const legendEntries = display.legend.show
+    ? buildLegend(document.rows, display.legend.groupBy, theme, themes)
+    : [];
+  const height =
+    chartHeight(layouts, theme.header.height) +
+    legendBlockHeight(legendEntries, scale.totalWidth, theme);
 
   const markup = renderToStaticMarkup(
     <GanttChart

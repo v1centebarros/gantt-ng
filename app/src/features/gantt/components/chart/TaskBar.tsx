@@ -37,6 +37,7 @@ export function TaskBar({
   const { bar: barStyle, typography } = theme;
   const w = Math.max(2, width);
   const canDrag = interactive && !bar.locked;
+  const showLabel = bar.showLabel !== false;
   const progress =
     bar.progress != null ? Math.max(0, Math.min(1, bar.progress)) : 0;
 
@@ -68,7 +69,7 @@ export function TaskBar({
           pointerEvents="none"
         />
       )}
-      {barStyle.labelPlacement === "inside" && w > 24 && (
+      {showLabel && barStyle.labelPlacement === "inside" && w > 24 && (
         <text
           x={x + 8}
           y={y + height / 2}
@@ -81,7 +82,7 @@ export function TaskBar({
           {bar.label}
         </text>
       )}
-      {barStyle.labelPlacement === "right" && (
+      {showLabel && barStyle.labelPlacement === "right" && (
         <text
           x={x + w + 6}
           y={y + height / 2}

@@ -2,6 +2,7 @@ import { DEFAULT_THEME_ID, GANTT_DEFAULTS } from "../constants";
 import {
   type Bar,
   type BarKind,
+  type DateMarker,
   GANTT_SCHEMA_VERSION,
   type GanttDocument,
   type GanttFile,
@@ -61,6 +62,18 @@ export function createRow(
   label = `Task group ${order + 1}`,
 ): Row {
   return { id: newId(), label, order, bars: [] };
+}
+
+export function createMarker(
+  date: string,
+  opts: Partial<Pick<DateMarker, "label" | "color">> = {},
+): DateMarker {
+  return {
+    id: newId(),
+    date,
+    label: opts.label ?? "Marker",
+    color: opts.color,
+  };
 }
 
 export function createBar(

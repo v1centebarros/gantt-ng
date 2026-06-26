@@ -1,15 +1,25 @@
 import type { PointerEvent, Ref } from "react";
 import { GANTT_DEFAULTS } from "../../constants";
+import type { MarkerDraft } from "../../hooks/useMarkerDrag";
 import { applyDraftToRows, type BarDraft } from "../../lib/draft";
 import {
   chartHeight,
   computeRowLayouts,
   type RowLayout,
 } from "../../lib/geometry";
+import { buildLegend, legendBlockHeight } from "../../lib/legend";
 import { createScale } from "../../lib/timescale/scale";
 import { generateTicks } from "../../lib/timescale/ticks";
-import type { Bar, GanttDocument, Theme } from "../../types";
+import {
+  type Bar,
+  type DateMarker,
+  type GanttDocument,
+  resolveDisplay,
+  type Theme,
+} from "../../types";
 import { BarLayer } from "./BarLayer";
+import { ChartLegend } from "./ChartLegend";
+import { DateMarkers } from "./DateMarkers";
 import { GridLayer } from "./GridLayer";
 import { RowBands } from "./RowBands";
 import type { BarDragMode } from "./TaskBar";
@@ -33,6 +43,11 @@ interface GanttChartProps {
     mode: BarDragMode,
   ) => void;
   onBackgroundPointerDown?: (e: PointerEvent<SVGSVGElement>) => void;
+  markerDraft?: MarkerDraft | null;
+  onMarkerPointerDown?: (
+    e: PointerEvent<SVGElement>,
+    marker: DateMarker,
+  ) => void;
 }
 
 export function GanttChart({
@@ -47,6 +62,8 @@ export function GanttChart({
   svgRef,
   onBarPointerDown,
   onBackgroundPointerDown,
+  markerDraft,
+  onMarkerPointerDown,
 }: GanttChartProps) {
   const { timescale } = document;
   const scale = createScale(timescale);
@@ -75,7 +92,13 @@ export function GanttChart({
     padding: GANTT_DEFAULTS.rowPadding,
   });
   const gutterW = withGutter ? GANTT_DEFAULTS.gutterWidth : 0;
-  const height = chartHeight(layouts, theme.header.height);
+  const bodyHeight = chartHeight(layouts, theme.header.height);
+  const display = resolveDisplay(document);
+  const legendEntries = display.legend.show
+    ? buildLegend(document.rows, display.legend.groupBy, theme, themes)
+    : [];
+  const legendH = legendBlockHeight(legendEntries, scale.totalWidth, theme);
+  const height = bodyHeight + legendH;
   const width = gutterW + scale.totalWidth;
   const headerH = theme.header.height;
 
@@ -104,15 +127,8 @@ export function GanttChart({
           ticks={secondary}
           scale={scale}
           top={headerH}
-          bottom={height}
+          bottom={bodyHeight}
           theme={theme}
-        />
-        <TodayMarker
-          scale={scale}
-          top={headerH}
-          bottom={height}
-          theme={theme}
-          today={today}
         />
         <BarLayer
           layouts={layouts}
@@ -123,6 +139,26 @@ export function GanttChart({
           interactive={interactive}
           onBarPointerDown={onBarPointerDown}
         />
+        {/* Markers draw above bars so their lines and labels stay visible. */}
+        {display.showTodayMarker && (
+          <TodayMarker
+            scale={scale}
+            top={headerH}
+            bottom={bodyHeight}
+            theme={theme}
+            today={today}
+          />
+        )}
+        <DateMarkers
+          markers={document.markers ?? []}
+          scale={scale}
+          top={headerH}
+          bottom={bodyHeight}
+          theme={theme}
+          interactive={interactive}
+          draft={markerDraft}
+          onMarkerPointerDown={onMarkerPointerDown}
+        />
         <TimelineHeader
           primary={primary}
           secondary={secondary}
@@ -130,6 +166,14 @@ export function GanttChart({
           theme={theme}
           showSecondary={showSecondary}
         />
+        {legendEntries.length > 0 && (
+          <ChartLegend
+            entries={legendEntries}
+            width={scale.totalWidth}
+            top={bodyHeight}
+            theme={theme}
+          />
+        )}
       </g>
 
       {withGutter && (

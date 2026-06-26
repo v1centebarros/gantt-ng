@@ -21,15 +21,18 @@ import { useBarDrag } from "../hooks/useBarDrag";
 import { useImportDocument } from "../hooks/useDocuments";
 import { useEditorShortcuts } from "../hooks/useEditorShortcuts";
 import { useGanttDocument } from "../hooks/useGanttDocument";
+import { useMarkerDrag } from "../hooks/useMarkerDrag";
 import { useThemes } from "../hooks/useThemes";
 import { applyDraftToRows } from "../lib/draft";
 import { type ExportFormat, exportChart } from "../lib/export/exporters";
-import { createBar, createRow } from "../lib/factory";
+import { createBar, createMarker, createRow } from "../lib/factory";
 import { computeRowLayouts, type RowLayout, sortedRows } from "../lib/geometry";
 import {
   addBar,
+  addMarker,
   addRow,
   deleteBar,
+  deleteMarker,
   deleteRow,
   moveBarToRow,
   renameDocument,
@@ -37,6 +40,8 @@ import {
   setDocumentTheme,
   updateBar,
   updateBarDates,
+  updateDisplay,
+  updateMarker,
   updateRow,
   updateTimescale,
 } from "../lib/mutations";
@@ -45,7 +50,8 @@ import { findFreeSlot } from "../lib/placement";
 import { LIGHT_THEME } from "../lib/theme/builtins";
 import { resolveTheme } from "../lib/theme/resolve";
 import { createScale } from "../lib/timescale/scale";
-import type { Bar, GanttFile } from "../types";
+import { formatDay } from "../lib/timescale/units";
+import { type Bar, type GanttFile, resolveDisplay } from "../types";
 import { GanttChart } from "./chart/GanttChart";
 import { GanttSettings } from "./panels/GanttSettings";
 import { Inspector } from "./panels/Inspector";
@@ -63,6 +69,8 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const layoutsRef = useRef<RowLayout[]>([]);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
+  // Date under the last right-click, for "Add marker here".
+  const markerDateRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   function toggleSidebar() {
@@ -92,6 +100,18 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
 
   const theme = resolveTheme(doc.themeId, themes, LIGHT_THEME);
   const scale = useMemo(() => createScale(doc.timescale), [doc.timescale]);
+
+  // Map the right-click x to a snapped day so "Add marker here" lands on it.
+  function rememberContextDate(e: { clientX: number }) {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const x = e.clientX - svg.getBoundingClientRect().left;
+    markerDateRef.current = formatDay(scale.snap(scale.xToDate(x)));
+  }
+  function addMarkerAtContextDate() {
+    const date = markerDateRef.current ?? doc.timescale.start;
+    update((d) => addMarker(d, createMarker(date)));
+  }
 
   const selectedBar = useMemo<Bar | null>(() => {
     if (!selectedBarId) return null;
@@ -125,6 +145,11 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
         const dated = updateBarDates(d, barId, start, end);
         return rowId ? moveBarToRow(dated, barId, rowId) : dated;
       }),
+  });
+
+  const markerDrag = useMarkerDrag({
+    pixelsPerDay: doc.timescale.pixelsPerDay,
+    onCommit: (id, date) => update((d) => updateMarker(d, id, { date })),
   });
 
   // Bake the live drag draft into rows so lane packing + row heights grow as a
@@ -208,10 +233,18 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
         <ResizablePanel defaultSize={75} minSize={30} className="min-w-0">
           <ContextMenu>
             <ContextMenuTrigger asChild>
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: scroll container hosts the chart's pointer-drag and right-click menu; keyboard paths exist via toolbar + shortcuts */}
               <div
                 className="h-full overflow-auto"
-                onPointerMove={drag.onPointerMove}
-                onPointerUp={drag.onPointerUp}
+                onPointerMove={(e) => {
+                  drag.onPointerMove(e);
+                  markerDrag.onPointerMove(e);
+                }}
+                onPointerUp={() => {
+                  drag.onPointerUp();
+                  markerDrag.onPointerUp();
+                }}
+                onContextMenu={rememberContextDate}
               >
                 <div className="flex" style={{ width }}>
                   <RowList
@@ -240,6 +273,8 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
                       drag.onBarPointerDown(e, bar, mode);
                     }}
                     onBackgroundPointerDown={() => setSelectedBarId(null)}
+                    markerDraft={markerDrag.draft}
+                    onMarkerPointerDown={markerDrag.onMarkerPointerDown}
                   />
                 </div>
               </div>
@@ -252,6 +287,10 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
               <ContextMenuItem disabled={!canRedo} onSelect={redo}>
                 Redo
                 <ContextMenuShortcut>⇧⌘Z</ContextMenuShortcut>
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem onSelect={addMarkerAtContextDate}>
+                Add marker here
               </ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem
@@ -299,6 +338,19 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
               themes={themes}
               themeId={doc.themeId}
               onThemeChange={(id) => update((d) => setDocumentTheme(d, id))}
+              theme={theme}
+              display={resolveDisplay(doc)}
+              onDisplayChange={(patch) =>
+                update((d) => updateDisplay(d, patch))
+              }
+              markers={doc.markers ?? []}
+              onAddMarker={() =>
+                update((d) => addMarker(d, createMarker(doc.timescale.start)))
+              }
+              onUpdateMarker={(id, patch) =>
+                update((d) => updateMarker(d, id, patch))
+              }
+              onDeleteMarker={(id) => update((d) => deleteMarker(d, id))}
             />
           )}
         </ResizablePanel>

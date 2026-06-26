@@ -59,6 +59,8 @@ export interface Bar {
   progress?: number;
   /** Palette token ("palette.blue") or an explicit color override. */
   color?: string;
+  /** Draw the label on the chart. Default true. */
+  showLabel?: boolean;
   themeId?: ID;
   dependencies?: Dependency[];
   /** Disables drag/resize when true. */
@@ -91,6 +93,36 @@ export interface DocumentMeta {
   appVersion?: string;
 }
 
+export type StrokeStyle = "solid" | "dashed" | "dotted";
+
+/** A user-defined vertical line at a chosen date (like the "today" marker). */
+export interface DateMarker {
+  id: ID;
+  date: ISODate;
+  label?: string;
+  /** Palette token ("palette.red") or explicit color; defaults to theme accent. */
+  color?: string;
+  /** Line style; defaults to "solid". */
+  strokeStyle?: StrokeStyle;
+  /** Line width in px; defaults to 2. */
+  strokeWidth?: number;
+  /** Draw the label on the chart. Default true. */
+  showLabel?: boolean;
+}
+
+export interface LegendConfig {
+  show: boolean;
+  /** Group legend entries by task name or by resolved color. */
+  groupBy: "label" | "color";
+}
+
+/** Document-level display toggles for chart overlays. */
+export interface DisplaySettings {
+  /** Show the vertical "today" line. Default true. */
+  showTodayMarker: boolean;
+  legend: LegendConfig;
+}
+
 export interface GanttDocument {
   id: ID;
   meta: DocumentMeta;
@@ -98,6 +130,21 @@ export interface GanttDocument {
   rows: Row[];
   /** Default theme for the document; rows/bars may override. */
   themeId: ID;
+  /** Display overlays (today marker, legend). Optional; see resolveDisplay. */
+  display?: DisplaySettings;
+  /** Custom vertical date markers. */
+  markers?: DateMarker[];
+}
+
+/** Fill display settings with defaults so older documents render sensibly. */
+export function resolveDisplay(doc: GanttDocument): DisplaySettings {
+  return {
+    showTodayMarker: doc.display?.showTodayMarker ?? true,
+    legend: {
+      show: doc.display?.legend?.show ?? false,
+      groupBy: doc.display?.legend?.groupBy ?? "label",
+    },
+  };
 }
 
 /**

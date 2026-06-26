@@ -37,17 +37,19 @@ export function MilestoneBar({
         style={canDrag ? { cursor: "grab" } : undefined}
         onPointerDown={canDrag ? (e) => onPointerDown?.(e, bar) : undefined}
       />
-      <text
-        x={cx + s + 6}
-        y={cy}
-        fill={theme.colors.text}
-        fontFamily={theme.typography.fontFamily}
-        fontSize={theme.typography.barLabelFontSize}
-        dominantBaseline="central"
-        pointerEvents="none"
-      >
-        {bar.label}
-      </text>
+      {bar.showLabel !== false && (
+        <text
+          x={cx + s + 6}
+          y={cy}
+          fill={theme.colors.text}
+          fontFamily={theme.typography.fontFamily}
+          fontSize={theme.typography.barLabelFontSize}
+          dominantBaseline="central"
+          pointerEvents="none"
+        >
+          {bar.label}
+        </text>
+      )}
     </g>
   );
 }

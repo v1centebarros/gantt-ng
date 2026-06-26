@@ -75,23 +75,20 @@ export function Toolbar({
         )}
       </span>
 
-
       <div className="ml-auto flex items-center gap-2">
-
         <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline">
-            <Plus className="size-4" /> Add
-            <ChevronDown className="size-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={onAddTask}>New task</DropdownMenuItem>
-          <DropdownMenuItem onClick={onAddRow}>New row</DropdownMenuItem>
-        </DropdownMenuContent>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Plus className="size-4" /> Add
+              <ChevronDown className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={onAddTask}>New task</DropdownMenuItem>
+            <DropdownMenuItem onClick={onAddRow}>New row</DropdownMenuItem>
+          </DropdownMenuContent>
         </DropdownMenu>
-        
-        
+
         <ExportMenu
           onExportImage={onExportImage}
           onExportGantt={onExportGantt}

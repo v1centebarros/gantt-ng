@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -60,6 +61,13 @@ export function Inspector({
           value={bar.label}
           onChange={(e) => onChange({ label: e.target.value })}
         />
+        <Label className="flex items-center gap-2 font-normal">
+          <Checkbox
+            checked={bar.showLabel !== false}
+            onCheckedChange={(v) => onChange({ showLabel: v === true })}
+          />
+          Show label on chart
+        </Label>
       </div>
 
       <div className="space-y-1.5">

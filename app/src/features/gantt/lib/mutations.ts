@@ -1,4 +1,12 @@
-import type { Bar, GanttDocument, Row, TimescaleConfig } from "../types";
+import {
+  type Bar,
+  type DateMarker,
+  type DisplaySettings,
+  type GanttDocument,
+  type Row,
+  resolveDisplay,
+  type TimescaleConfig,
+} from "../types";
 
 /** All helpers are pure: they return a new document, never mutate the input. */
 
@@ -116,4 +124,42 @@ export function renameDocument(
   title: string,
 ): GanttDocument {
   return { ...doc, meta: { ...doc.meta, title } };
+}
+
+/** Merge a patch over the document's display settings (filling defaults). */
+export function updateDisplay(
+  doc: GanttDocument,
+  patch: Partial<DisplaySettings>,
+): GanttDocument {
+  return { ...doc, display: { ...resolveDisplay(doc), ...patch } };
+}
+
+export function addMarker(
+  doc: GanttDocument,
+  marker: DateMarker,
+): GanttDocument {
+  return { ...doc, markers: [...(doc.markers ?? []), marker] };
+}
+
+export function updateMarker(
+  doc: GanttDocument,
+  markerId: string,
+  patch: Partial<DateMarker>,
+): GanttDocument {
+  return {
+    ...doc,
+    markers: (doc.markers ?? []).map((m) =>
+      m.id === markerId ? { ...m, ...patch } : m,
+    ),
+  };
+}
+
+export function deleteMarker(
+  doc: GanttDocument,
+  markerId: string,
+): GanttDocument {
+  return {
+    ...doc,
+    markers: (doc.markers ?? []).filter((m) => m.id !== markerId),
+  };
 }
