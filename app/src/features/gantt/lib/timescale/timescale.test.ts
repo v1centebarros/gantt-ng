@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { TimescaleConfig } from "../../types";
+import type { GanttDocument, TimescaleConfig } from "../../types";
+import { updateTimescale } from "../mutations";
 import { createScale } from "./scale";
 import { generateTicks } from "./ticks";
 import { diffDays, isoWeek, parseDay, startOfWeek } from "./units";
@@ -120,5 +121,35 @@ describe("generateTicks", () => {
     expect(
       generateTicks("2026-04-01", "2026-01-01", { type: "day" }, 1),
     ).toEqual([]);
+  });
+});
+
+describe("updateTimescale", () => {
+  // updateTimescale only reads/writes doc.timescale.
+  const doc = { timescale: base } as GanttDocument;
+  const duration = diffDays(parseDay(base.start), parseDay(base.end));
+
+  it("shifts End to preserve the window length when Start moves", () => {
+    const ts = updateTimescale(doc, { start: "2026-02-01" }).timescale;
+    expect(ts.start).toBe("2026-02-01");
+    expect(diffDays(parseDay(ts.start), parseDay(ts.end))).toBe(duration);
+    expect(parseDay(ts.end).getTime()).toBeGreaterThan(
+      parseDay(ts.start).getTime(),
+    );
+  });
+
+  it("keeps the same duration even when Start jumps far ahead", () => {
+    const ts = updateTimescale(doc, { start: "2030-01-01" }).timescale;
+    expect(diffDays(parseDay(ts.start), parseDay(ts.end))).toBe(duration);
+  });
+
+  it("sets End verbatim and leaves Start untouched", () => {
+    const ts = updateTimescale(doc, { end: "2026-06-01" }).timescale;
+    expect(ts.start).toBe(base.start);
+    expect(ts.end).toBe("2026-06-01");
+  });
+
+  it("ignores an empty/invalid Start (no Invalid Date written)", () => {
+    expect(updateTimescale(doc, { start: "" }).timescale.end).toBe(base.end);
   });
 });

@@ -7,6 +7,7 @@ import {
   resolveDisplay,
   type TimescaleConfig,
 } from "../types";
+import { addDays, diffDays, formatDay, parseDay } from "./timescale/units";
 
 /** All helpers are pure: they return a new document, never mutate the input. */
 
@@ -105,11 +106,25 @@ export function reorderRows(
   };
 }
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
 export function updateTimescale(
   doc: GanttDocument,
   patch: Partial<TimescaleConfig>,
 ): GanttDocument {
-  return { ...doc, timescale: { ...doc.timescale, ...patch } };
+  const ts = doc.timescale;
+  // Moving the start shifts the end to preserve the window length, which also
+  // keeps end > start without inverting or blowing up the range.
+  if (
+    patch.start !== undefined &&
+    patch.end === undefined &&
+    ISO_DAY.test(patch.start)
+  ) {
+    const duration = diffDays(parseDay(ts.start), parseDay(ts.end));
+    const end = formatDay(addDays(parseDay(patch.start), duration));
+    return { ...doc, timescale: { ...ts, ...patch, end } };
+  }
+  return { ...doc, timescale: { ...ts, ...patch } };
 }
 
 export function setDocumentTheme(

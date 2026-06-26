@@ -25,6 +25,7 @@ import type {
   Theme,
   TimescaleConfig,
 } from "../../types";
+import { DateField } from "./DateField";
 import { ThemeControls } from "./ThemeControls";
 
 interface GanttSettingsProps {
@@ -106,20 +107,18 @@ export function GanttSettings({
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1.5">
             <Label htmlFor="ts-start">Start</Label>
-            <Input
+            <DateField
               id="ts-start"
-              type="date"
               value={timescale.start}
-              onChange={(e) => onTimescaleChange({ start: e.target.value })}
+              onCommit={(v) => onTimescaleChange({ start: v })}
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ts-end">End</Label>
-            <Input
+            <DateField
               id="ts-end"
-              type="date"
               value={timescale.end}
-              onChange={(e) => onTimescaleChange({ end: e.target.value })}
+              onCommit={(v) => onTimescaleChange({ end: v })}
             />
           </div>
         </div>
