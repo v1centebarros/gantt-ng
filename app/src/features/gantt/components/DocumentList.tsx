@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarRange, FileUp, Plus, Trash2 } from "lucide-react";
+import { FileUp, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
   useImportDocument,
 } from "../hooks/useDocuments";
 import { importGanttFile } from "../lib/persistence/serialize";
+import { Logo } from "./Logo";
 
 export function DocumentList() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export function DocumentList() {
       />
 
       <div className="mb-8 flex items-center gap-3">
-        <CalendarRange className="size-7 text-primary" />
+        <Logo className="size-7" />
         <div>
           <h1 className="font-heading text-2xl font-bold">gantt-ng</h1>
           <p className="text-sm text-muted-foreground">
