@@ -205,7 +205,7 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
   async function handleImportGantt(file: File) {
     const imported = await importGanttFile(file);
     await importDoc.mutateAsync(imported);
-    router.push(`/editor/${imported.document.id}`);
+    router.push(`/editor?doc=${imported.document.id}`);
   }
 
   const width = GANTT_DEFAULTS.gutterWidth + scale.totalWidth;

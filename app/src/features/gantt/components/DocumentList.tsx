@@ -30,13 +30,13 @@ export function DocumentList() {
 
   async function handleCreate() {
     const file = await create.mutateAsync(undefined);
-    router.push(`/editor/${file.document.id}`);
+    router.push(`/editor?doc=${file.document.id}`);
   }
 
   async function handleImport(file: File) {
     const imported = await importGanttFile(file);
     await importDoc.mutateAsync(imported);
-    router.push(`/editor/${imported.document.id}`);
+    router.push(`/editor?doc=${imported.document.id}`);
   }
 
   return (
@@ -100,7 +100,7 @@ export function DocumentList() {
                   <button
                     type="button"
                     className="min-w-0 text-left outline-none"
-                    onClick={() => router.push(`/editor/${doc.id}`)}
+                    onClick={() => router.push(`/editor?doc=${doc.id}`)}
                   >
                     <CardTitle className="truncate">{doc.title}</CardTitle>
                     <CardDescription>
