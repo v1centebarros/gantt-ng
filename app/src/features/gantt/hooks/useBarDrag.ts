@@ -2,6 +2,7 @@
 
 import { type PointerEvent, useCallback, useRef, useState } from "react";
 import type { BarDragMode } from "../components/chart/TaskBar";
+import { clampBarDates } from "../lib/bounds";
 import type { BarDraft } from "../lib/draft";
 import { addDays, diffDays, formatDay, parseDay } from "../lib/timescale/units";
 import type { Bar } from "../types";
@@ -16,6 +17,9 @@ interface DragState {
 
 interface UseBarDragOptions {
   pixelsPerDay: number;
+  /** Chart window bounds; bars are clamped inside them during the gesture. */
+  windowStart: string;
+  windowEnd: string;
   /** Commit final dates (and target row, if moved) on pointer-up. */
   onCommit: (barId: string, start: string, end: string, rowId?: string) => void;
   /** Resolve the row id under a client-Y coordinate (for cross-row moves). */
@@ -30,6 +34,8 @@ interface UseBarDragOptions {
  */
 export function useBarDrag({
   pixelsPerDay,
+  windowStart,
+  windowEnd,
   onCommit,
   getRowIdAtClientY,
 }: UseBarDragOptions) {
@@ -83,14 +89,16 @@ export function useBarDrag({
         if (diffDays(s.origStart, end) < 1) end = addDays(s.origStart, 1);
         start = s.origStart;
       }
-      setBoth({
-        id: s.bar.id,
-        start: formatDay(start),
-        end: formatDay(end),
-        rowId,
-      });
+      // Keep the dragged bar inside the chart window (preserving duration on move).
+      const clamped = clampBarDates(
+        { start: formatDay(start), end: formatDay(end) },
+        { start: windowStart, end: windowEnd },
+        s.mode,
+        s.bar.kind === "milestone",
+      );
+      setBoth({ id: s.bar.id, start: clamped.start, end: clamped.end, rowId });
     },
-    [pixelsPerDay, getRowIdAtClientY, setBoth],
+    [pixelsPerDay, windowStart, windowEnd, getRowIdAtClientY, setBoth],
   );
 
   const onPointerUp = useCallback(() => {

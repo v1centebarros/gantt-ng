@@ -19,6 +19,8 @@ interface BarLayerProps {
     bar: Bar,
     mode: BarDragMode,
   ) => void;
+  /** Visible x-range; bars outside it are culled (viewport virtualization). */
+  clip?: { x0: number; x1: number };
 }
 
 export function BarLayer({
@@ -29,6 +31,7 @@ export function BarLayer({
   selectedBarId,
   interactive,
   onBarPointerDown,
+  clip,
 }: BarLayerProps) {
   return (
     <g data-part="bars">
@@ -47,6 +50,8 @@ export function BarLayer({
           if (bar.kind === "milestone") {
             const cx = scale.dateToX(parseDay(bar.start));
             const cy = top + layout.slotHeight / 2;
+            // Cull when off-screen (allow a diamond's half-width of slack).
+            if (clip && (cx < clip.x0 - 16 || cx > clip.x1 + 16)) return null;
             return (
               <MilestoneBar
                 key={bar.id}
@@ -64,6 +69,7 @@ export function BarLayer({
 
           const x = scale.dateToX(parseDay(bar.start));
           const width = scale.dateToX(parseDay(bar.end)) - x;
+          if (clip && (x + width < clip.x0 || x > clip.x1)) return null;
           const y = barY(top, layout.slotHeight, effective.bar.height);
           return (
             <TaskBar

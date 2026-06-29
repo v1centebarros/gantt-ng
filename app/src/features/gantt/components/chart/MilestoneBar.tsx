@@ -32,8 +32,9 @@ export function MilestoneBar({
       <path
         d={path}
         fill={color}
-        stroke={selected ? theme.colors.accent : theme.bar.borderColor}
-        strokeWidth={selected ? 2 : theme.bar.borderWidth}
+        stroke={theme.bar.borderColor}
+        strokeWidth={theme.bar.borderWidth}
+        filter={selected ? "url(#bar-selected-glow)" : undefined}
         style={canDrag ? { cursor: "grab" } : undefined}
         onPointerDown={canDrag ? (e) => onPointerDown?.(e, bar) : undefined}
       />

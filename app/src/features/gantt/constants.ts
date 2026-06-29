@@ -21,3 +21,6 @@ export const GANTT_DEFAULTS = {
 
 /** ID of the default builtin theme. */
 export const DEFAULT_THEME_ID = "builtin-light";
+
+/** Current app version, shown in the editor sidebar footer. */
+export const APP_VERSION = "0.0.1";

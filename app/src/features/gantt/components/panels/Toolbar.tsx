@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  ArrowLeft,
-  Check,
-  ChevronDown,
-  Loader2,
-  PanelRight,
-  Plus,
-} from "lucide-react";
+import { Check, ChevronDown, Loader2, PanelRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import type { ExportFormat } from "../../lib/export/exporters";
+import { Logo } from "../Logo";
 import { EditableTitle } from "./EditableTitle";
 import { ExportMenu } from "./ExportMenu";
 
@@ -55,7 +49,7 @@ export function Toolbar({
         aria-label="Back to documents"
       >
         <Link href="/">
-          <ArrowLeft className="size-4" />
+          <Logo className="size-6" />
         </Link>
       </Button>
       <EditableTitle

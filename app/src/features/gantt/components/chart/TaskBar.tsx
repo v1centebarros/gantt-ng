@@ -50,8 +50,9 @@ export function TaskBar({
         height={height}
         rx={barStyle.cornerRadius}
         fill={color}
-        stroke={selected ? theme.colors.accent : barStyle.borderColor}
-        strokeWidth={selected ? 2 : barStyle.borderWidth}
+        stroke={barStyle.borderColor}
+        strokeWidth={barStyle.borderWidth}
+        filter={selected ? "url(#bar-selected-glow)" : undefined}
         style={canDrag ? { cursor: "grab" } : undefined}
         onPointerDown={
           canDrag ? (e) => onPointerDown?.(e, bar, "move") : undefined
@@ -97,13 +98,14 @@ export function TaskBar({
       )}
       {canDrag && selected && (
         <>
+          {/* Invisible resize hit-targets — the glow alone signals selection. */}
           <rect
             x={x}
             y={y}
             width={HANDLE_WIDTH}
             height={height}
-            fill={theme.colors.accent}
-            opacity={0.9}
+            fill="transparent"
+            pointerEvents="all"
             style={{ cursor: "ew-resize" }}
             onPointerDown={(e) => onPointerDown?.(e, bar, "resize-start")}
           />
@@ -112,8 +114,8 @@ export function TaskBar({
             y={y}
             width={HANDLE_WIDTH}
             height={height}
-            fill={theme.colors.accent}
-            opacity={0.9}
+            fill="transparent"
+            pointerEvents="all"
             style={{ cursor: "ew-resize" }}
             onPointerDown={(e) => onPointerDown?.(e, bar, "resize-end")}
           />

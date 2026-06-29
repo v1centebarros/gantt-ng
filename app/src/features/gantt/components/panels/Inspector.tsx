@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Bar, BarKind, Theme } from "../../types";
+import { DateField } from "./DateField";
 
 interface InspectorProps {
   bar: Bar | null;
@@ -90,21 +91,19 @@ export function Inspector({
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
           <Label htmlFor="bar-start">Start</Label>
-          <Input
+          <DateField
             id="bar-start"
-            type="date"
             value={bar.start}
-            onChange={(e) => onChange({ start: e.target.value })}
+            onCommit={(v) => onChange({ start: v })}
           />
         </div>
         {bar.kind !== "milestone" && (
           <div className="space-y-1.5">
             <Label htmlFor="bar-end">End</Label>
-            <Input
+            <DateField
               id="bar-end"
-              type="date"
               value={bar.end}
-              onChange={(e) => onChange({ end: e.target.value })}
+              onCommit={(v) => onChange({ end: v })}
             />
           </div>
         )}

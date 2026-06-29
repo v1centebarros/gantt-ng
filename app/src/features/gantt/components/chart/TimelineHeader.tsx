@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Scale } from "../../lib/timescale/scale";
 import type { Tick } from "../../lib/timescale/ticks";
 import type { Theme } from "../../types";
@@ -12,7 +13,7 @@ interface TimelineHeaderProps {
 }
 
 /** Two-tier date header. The top tier is coarse (primaryUnit), bottom is fine. */
-export function TimelineHeader({
+function TimelineHeaderImpl({
   primary,
   secondary,
   scale,
@@ -61,6 +62,8 @@ export function TimelineHeader({
     </g>
   );
 }
+
+export const TimelineHeader = memo(TimelineHeaderImpl);
 
 function renderTier(
   ticks: Tick[],

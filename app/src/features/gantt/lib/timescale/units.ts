@@ -41,6 +41,13 @@ export function addDays(date: Date, n: number): Date {
   return new Date(date.getTime() + n * MS_PER_DAY);
 }
 
+/** Clamp a date into the inclusive [min, max] range. */
+export function clampDay(date: Date, min: Date, max: Date): Date {
+  if (date.getTime() < min.getTime()) return min;
+  if (date.getTime() > max.getTime()) return max;
+  return date;
+}
+
 export function addMonths(date: Date, n: number): Date {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + n, date.getUTCDate()),

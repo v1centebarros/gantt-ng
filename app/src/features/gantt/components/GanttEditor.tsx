@@ -16,13 +16,15 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { GANTT_DEFAULTS } from "../constants";
+import { APP_VERSION, GANTT_DEFAULTS } from "../constants";
 import { useBarDrag } from "../hooks/useBarDrag";
 import { useImportDocument } from "../hooks/useDocuments";
 import { useEditorShortcuts } from "../hooks/useEditorShortcuts";
 import { useGanttDocument } from "../hooks/useGanttDocument";
+import { useHorizontalViewport } from "../hooks/useHorizontalViewport";
 import { useMarkerDrag } from "../hooks/useMarkerDrag";
 import { useThemes } from "../hooks/useThemes";
+import { clampBarDates } from "../lib/bounds";
 import { applyDraftToRows } from "../lib/draft";
 import { type ExportFormat, exportChart } from "../lib/export/exporters";
 import { createBar, createMarker, createRow } from "../lib/factory";
@@ -67,6 +69,7 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
   const [selectedBarId, setSelectedBarId] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const layoutsRef = useRef<RowLayout[]>([]);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
   // Date under the last right-click, for "Add marker here".
@@ -139,6 +142,8 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
 
   const drag = useBarDrag({
     pixelsPerDay: doc.timescale.pixelsPerDay,
+    windowStart: doc.timescale.start,
+    windowEnd: doc.timescale.end,
     getRowIdAtClientY,
     onCommit: (barId, start, end, rowId) =>
       update((d) => {
@@ -175,11 +180,13 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
   }
   // Place a task in the nearest free slot on the row so it never overlaps.
   function placeBar(rowId: string, bars: Bar[]) {
-    const { start, end } = findFreeSlot(
+    const slot = findFreeSlot(
       bars,
       doc.timescale.start,
       GANTT_DEFAULTS.newTaskDays,
     );
+    // Keep the new task inside the window (short spans could overflow the end).
+    const { start, end } = clampBarDates(slot, doc.timescale, "edit", false);
     const bar = createBar(rowId, start, end);
     update((d) => addBar(d, rowId, bar));
     setSelectedRowId(rowId);
@@ -210,6 +217,18 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
 
   const width = GANTT_DEFAULTS.gutterWidth + scale.totalWidth;
 
+  // Visible x-range (SVG coords) for virtualization: only render the cells/bars
+  // in view, plus a one-viewport overscan so scrolling doesn't show blanks.
+  const viewport = useHorizontalViewport(scrollRef);
+  const clip = useMemo(() => {
+    if (viewport.width <= 0) return undefined;
+    const buffer = viewport.width;
+    const localLeft = viewport.scrollLeft - GANTT_DEFAULTS.gutterWidth;
+    const x0 = Math.max(0, localLeft - buffer);
+    const x1 = Math.min(scale.totalWidth, localLeft + viewport.width + buffer);
+    return { x0, x1 };
+  }, [viewport, scale.totalWidth]);
+
   return (
     <div className="flex h-dvh flex-col animate-in fade-in duration-200">
       <Toolbar
@@ -235,6 +254,7 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
             <ContextMenuTrigger asChild>
               {/* biome-ignore lint/a11y/noStaticElementInteractions: scroll container hosts the chart's pointer-drag and right-click menu; keyboard paths exist via toolbar + shortcuts */}
               <div
+                ref={scrollRef}
                 className="h-full overflow-auto"
                 onPointerMove={(e) => {
                   drag.onPointerMove(e);
@@ -268,6 +288,7 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
                     selectedBarId={selectedBarId}
                     draft={drag.draft}
                     svgRef={svgRef}
+                    clip={clip}
                     onBarPointerDown={(e, bar, mode) => {
                       selectBar(bar.id);
                       drag.onBarPointerDown(e, bar, mode);
@@ -317,42 +338,47 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
           collapsedSize={0}
           onCollapse={() => setSidebarCollapsed(true)}
           onExpand={() => setSidebarCollapsed(false)}
-          className="min-w-0 border-l border-border"
+          className="flex min-w-0 flex-col border-l border-border"
         >
-          {selectedBar ? (
-            <Inspector
-              bar={selectedBar}
-              theme={theme}
-              onChange={(patch) =>
-                update((d) => updateBar(d, selectedBar.id, patch))
-              }
-              onDelete={deleteSelectedBar}
-              onClose={() => setSelectedBarId(null)}
-            />
-          ) : (
-            <GanttSettings
-              timescale={doc.timescale}
-              onTimescaleChange={(patch) =>
-                update((d) => updateTimescale(d, patch))
-              }
-              themes={themes}
-              themeId={doc.themeId}
-              onThemeChange={(id) => update((d) => setDocumentTheme(d, id))}
-              theme={theme}
-              display={resolveDisplay(doc)}
-              onDisplayChange={(patch) =>
-                update((d) => updateDisplay(d, patch))
-              }
-              markers={doc.markers ?? []}
-              onAddMarker={() =>
-                update((d) => addMarker(d, createMarker(doc.timescale.start)))
-              }
-              onUpdateMarker={(id, patch) =>
-                update((d) => updateMarker(d, id, patch))
-              }
-              onDeleteMarker={(id) => update((d) => deleteMarker(d, id))}
-            />
-          )}
+          <div className="min-h-0 flex-1">
+            {selectedBar ? (
+              <Inspector
+                bar={selectedBar}
+                theme={theme}
+                onChange={(patch) =>
+                  update((d) => updateBar(d, selectedBar.id, patch))
+                }
+                onDelete={deleteSelectedBar}
+                onClose={() => setSelectedBarId(null)}
+              />
+            ) : (
+              <GanttSettings
+                timescale={doc.timescale}
+                onTimescaleChange={(patch) =>
+                  update((d) => updateTimescale(d, patch))
+                }
+                themes={themes}
+                themeId={doc.themeId}
+                onThemeChange={(id) => update((d) => setDocumentTheme(d, id))}
+                theme={theme}
+                display={resolveDisplay(doc)}
+                onDisplayChange={(patch) =>
+                  update((d) => updateDisplay(d, patch))
+                }
+                markers={doc.markers ?? []}
+                onAddMarker={() =>
+                  update((d) => addMarker(d, createMarker(doc.timescale.start)))
+                }
+                onUpdateMarker={(id, patch) =>
+                  update((d) => updateMarker(d, id, patch))
+                }
+                onDeleteMarker={(id) => update((d) => deleteMarker(d, id))}
+              />
+            )}
+          </div>
+          <div className="border-t border-border px-4 py-2 text-right text-xs text-muted-foreground">
+            gantt-ng@v{APP_VERSION}
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

@@ -1,4 +1,4 @@
-import type { PointerEvent, Ref } from "react";
+import { memo, type PointerEvent, type Ref, useMemo } from "react";
 import { GANTT_DEFAULTS } from "../../constants";
 import type { MarkerDraft } from "../../hooks/useMarkerDrag";
 import { applyDraftToRows, type BarDraft } from "../../lib/draft";
@@ -48,9 +48,15 @@ interface GanttChartProps {
     e: PointerEvent<SVGElement>,
     marker: DateMarker,
   ) => void;
+  /**
+   * Visible x-range in SVG coordinates. When set, only cells/bars intersecting
+   * it are rendered (viewport virtualization). Omit to render the whole chart
+   * (exports, thumbnails).
+   */
+  clip?: { x0: number; x1: number };
 }
 
-export function GanttChart({
+function GanttChartImpl({
   document,
   theme,
   themes,
@@ -64,33 +70,54 @@ export function GanttChart({
   onBackgroundPointerDown,
   markerDraft,
   onMarkerPointerDown,
+  clip,
 }: GanttChartProps) {
   const { timescale } = document;
-  const scale = createScale(timescale);
+  const scale = useMemo(() => createScale(timescale), [timescale]);
   const showSecondary = timescale.showSecondaryLabels !== false;
-  const primary = generateTicks(
-    timescale.start,
-    timescale.end,
-    timescale.primaryUnit,
-    timescale.weekStartsOn,
-    { monthLabelStyle: timescale.monthLabelStyle },
+
+  // Visible date range for tick clipping (whole window when not virtualizing).
+  const clipDates = useMemo(
+    () =>
+      clip
+        ? { clipStart: scale.xToDate(clip.x0), clipEnd: scale.xToDate(clip.x1) }
+        : undefined,
+    [clip, scale],
   );
-  const secondary = generateTicks(
-    timescale.start,
-    timescale.end,
-    timescale.secondaryUnit,
-    timescale.weekStartsOn,
-    { monthLabelStyle: timescale.monthLabelStyle },
+
+  const primary = useMemo(
+    () =>
+      generateTicks(
+        timescale.start,
+        timescale.end,
+        timescale.primaryUnit,
+        timescale.weekStartsOn,
+        { monthLabelStyle: timescale.monthLabelStyle, ...clipDates },
+      ),
+    [timescale, clipDates],
+  );
+  const secondary = useMemo(
+    () =>
+      generateTicks(
+        timescale.start,
+        timescale.end,
+        timescale.secondaryUnit,
+        timescale.weekStartsOn,
+        { monthLabelStyle: timescale.monthLabelStyle, ...clipDates },
+      ),
+    [timescale, clipDates],
   );
   // Bake the live drag draft into the rows so lane packing and row heights
   // reflect the in-progress gesture (overlaps grow the row instead of stacking
   // bars on top of each other).
-  const effectiveRows = applyDraftToRows(document.rows, draft ?? null);
-  const layouts = computeRowLayouts(effectiveRows, theme.header.height, {
-    barHeight: theme.bar.height,
-    laneGap: GANTT_DEFAULTS.laneGap,
-    padding: GANTT_DEFAULTS.rowPadding,
-  });
+  const layouts = useMemo(() => {
+    const effectiveRows = applyDraftToRows(document.rows, draft ?? null);
+    return computeRowLayouts(effectiveRows, theme.header.height, {
+      barHeight: theme.bar.height,
+      laneGap: GANTT_DEFAULTS.laneGap,
+      padding: GANTT_DEFAULTS.rowPadding,
+    });
+  }, [document.rows, draft, theme.header.height, theme.bar.height]);
   const gutterW = withGutter ? GANTT_DEFAULTS.gutterWidth : 0;
   const bodyHeight = chartHeight(layouts, theme.header.height);
   const display = resolveDisplay(document);
@@ -113,6 +140,24 @@ export function GanttChart({
       onPointerDown={onBackgroundPointerDown}
     >
       <title>{`Gantt chart: ${document.meta.title}`}</title>
+      <defs>
+        {/* Soft neutral shadow marking the selected bar (replaces a hard outline). */}
+        <filter
+          id="bar-selected-glow"
+          x="-40%"
+          y="-40%"
+          width="180%"
+          height="180%"
+        >
+          <feDropShadow
+            dx="0"
+            dy="1"
+            stdDeviation="2.5"
+            floodColor={theme.colors.text}
+            floodOpacity="0.35"
+          />
+        </filter>
+      </defs>
       <rect
         x={0}
         y={0}
@@ -138,6 +183,7 @@ export function GanttChart({
           selectedBarId={selectedBarId}
           interactive={interactive}
           onBarPointerDown={onBarPointerDown}
+          clip={clip}
         />
         {/* Markers draw above bars so their lines and labels stay visible. */}
         {display.showTodayMarker && (
@@ -187,6 +233,9 @@ export function GanttChart({
     </svg>
   );
 }
+
+/** Memoized so a drag (which only changes `draft`) doesn't rebuild the chart. */
+export const GanttChart = memo(GanttChartImpl);
 
 function Gutter({
   layouts,

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Scale } from "../../lib/timescale/scale";
 import type { Tick } from "../../lib/timescale/ticks";
 import type { Theme } from "../../types";
@@ -11,20 +12,16 @@ interface GridLayerProps {
 }
 
 /** Vertical grid lines at each secondary tick, emphasized every `majorEvery`. */
-export function GridLayer({
-  ticks,
-  scale,
-  top,
-  bottom,
-  theme,
-}: GridLayerProps) {
+function GridLayerImpl({ ticks, scale, top, bottom, theme }: GridLayerProps) {
   const { grid } = theme;
   if (!grid.show) return null;
   return (
     <g data-part="grid">
-      {ticks.map((tick, i) => {
+      {ticks.map((tick) => {
         const x = scale.dateToX(tick.start);
-        const isMajor = grid.majorEvery > 0 && i % grid.majorEvery === 0;
+        // Use the absolute index so emphasis stays put while virtualizing.
+        const isMajor =
+          grid.majorEvery > 0 && tick.index % grid.majorEvery === 0;
         return (
           <line
             key={tick.start.getTime()}
@@ -41,3 +38,5 @@ export function GridLayer({
     </g>
   );
 }
+
+export const GridLayer = memo(GridLayerImpl);

@@ -26,7 +26,11 @@ export function DateField({ value, onCommit, ...rest }: DateFieldProps) {
 
   const commit = () => {
     if (draft && draft !== value) onCommit(draft);
-    else if (!draft) setDraft(value); // ignore a cleared field
+    // Snap back to the source of truth. The parent may clamp/normalize the
+    // committed value — possibly back to the current one, which wouldn't
+    // retrigger the [value] effect — so a cleared or out-of-range entry never
+    // lingers in the input.
+    setDraft(value);
   };
 
   return (

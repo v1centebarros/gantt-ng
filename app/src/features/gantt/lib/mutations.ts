@@ -7,6 +7,7 @@ import {
   resolveDisplay,
   type TimescaleConfig,
 } from "../types";
+import { clampBarDates } from "./bounds";
 import { addDays, diffDays, formatDay, parseDay } from "./timescale/units";
 
 /** All helpers are pure: they return a new document, never mutate the input. */
@@ -20,9 +21,25 @@ export function updateBar(
   barId: string,
   patch: Partial<Bar>,
 ): GanttDocument {
+  const touchesDates = patch.start !== undefined || patch.end !== undefined;
   return mapRows(doc, (row) => ({
     ...row,
-    bars: row.bars.map((b) => (b.id === barId ? { ...b, ...patch } : b)),
+    bars: row.bars.map((b) => {
+      if (b.id !== barId) return b;
+      const merged = { ...b, ...patch };
+      // Keep the bar inside the chart window whenever its dates change.
+      if (touchesDates) {
+        const { start, end } = clampBarDates(
+          merged,
+          doc.timescale,
+          "edit",
+          merged.kind === "milestone",
+        );
+        merged.start = start;
+        merged.end = end;
+      }
+      return merged;
+    }),
   }));
 }
 

@@ -122,6 +122,44 @@ describe("generateTicks", () => {
       generateTicks("2026-04-01", "2026-01-01", { type: "day" }, 1),
     ).toEqual([]);
   });
+
+  it("tags cells with a monotonic absolute index from 0", () => {
+    const ticks = generateTicks("2026-01-01", "2026-01-08", { type: "day" }, 1);
+    expect(ticks.map((t) => t.index)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it("clips to the visible range, keeping absolute indices and labels", () => {
+    const ticks = generateTicks(
+      "2026-01-01",
+      "2026-01-31",
+      { type: "day" },
+      1,
+      {
+        clipStart: parseDay("2026-01-10"),
+        clipEnd: parseDay("2026-01-13"),
+      },
+    );
+    // Cells for the 10th, 11th, 12th (each intersects [10th, 13th)).
+    expect(ticks.map((t) => t.label)).toEqual(["10", "11", "12"]);
+    // Index is absolute (9 = the 10th day from the window start), not 0.
+    expect(ticks[0].index).toBe(9);
+  });
+
+  it("renders only a viewport's worth of cells for a huge span", () => {
+    // 3-year day window clipped to a ~1-month visible range: ~30 cells, not 1095.
+    const ticks = generateTicks(
+      "2026-01-01",
+      "2029-01-01",
+      { type: "day" },
+      1,
+      {
+        clipStart: parseDay("2027-06-01"),
+        clipEnd: parseDay("2027-07-01"),
+      },
+    );
+    expect(ticks.length).toBeLessThan(40);
+    expect(ticks.length).toBeGreaterThan(25);
+  });
 });
 
 describe("updateTimescale", () => {

@@ -19,6 +19,8 @@ export interface Tick {
   /** Cell end, exclusive (clamped to window end). */
   end: Date;
   label: string;
+  /** Absolute cell index from the window start (stable while virtualizing). */
+  index: number;
 }
 
 /** Step to the boundary that begins the cell *after* the given one. */
@@ -74,6 +76,9 @@ function alignToBoundary(
 export interface TickOptions {
   /** Month label rendering. Default "name". */
   monthLabelStyle?: "name" | "number";
+  /** Only emit cells intersecting [clipStart, clipEnd) (viewport virtualization). */
+  clipStart?: Date;
+  clipEnd?: Date;
 }
 
 function labelFor(date: Date, unit: TimeUnit, opts: TickOptions): string {
@@ -119,19 +124,29 @@ export function generateTicks(
 
   // Guard against pathological configs producing unbounded loops.
   let safety = 0;
+  let index = 0;
   const maxCells = 100_000;
+  const { clipStart, clipEnd } = opts;
   while (boundary < windowEnd && safety++ < maxCells) {
     const next = nextBoundary(boundary, unit);
-    const cellStart = boundary < windowStart ? windowStart : boundary;
-    const cellEnd = next > windowEnd ? windowEnd : next;
-    if (cellEnd > cellStart) {
-      ticks.push({
-        start: cellStart,
-        end: cellEnd,
-        label: labelFor(boundary, unit, opts),
-      });
+    // Virtualization: skip cells that don't intersect the visible window, but
+    // keep counting so `index` stays absolute and major grid lines don't shift.
+    const visible =
+      (!clipEnd || boundary < clipEnd) && (!clipStart || next > clipStart);
+    if (visible) {
+      const cellStart = boundary < windowStart ? windowStart : boundary;
+      const cellEnd = next > windowEnd ? windowEnd : next;
+      if (cellEnd > cellStart) {
+        ticks.push({
+          start: cellStart,
+          end: cellEnd,
+          label: labelFor(boundary, unit, opts),
+          index,
+        });
+      }
     }
     boundary = next;
+    index++;
   }
   return ticks;
 }
