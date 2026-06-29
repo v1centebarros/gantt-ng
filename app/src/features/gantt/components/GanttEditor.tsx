@@ -52,7 +52,7 @@ import { findFreeSlot } from "../lib/placement";
 import { LIGHT_THEME } from "../lib/theme/builtins";
 import { resolveTheme } from "../lib/theme/resolve";
 import { createScale } from "../lib/timescale/scale";
-import { formatDay } from "../lib/timescale/units";
+import { addDays, formatDay, parseDay } from "../lib/timescale/units";
 import { type Bar, type GanttFile, resolveDisplay } from "../types";
 import { GanttChart } from "./chart/GanttChart";
 import { GanttSettings } from "./panels/GanttSettings";
@@ -72,8 +72,9 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const layoutsRef = useRef<RowLayout[]>([]);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
-  // Date under the last right-click, for "Add marker here".
-  const markerDateRef = useRef<string | null>(null);
+  // Date + row under the last right-click, for "Add task/marker here".
+  const contextDateRef = useRef<string | null>(null);
+  const contextRowIdRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   function toggleSidebar() {
@@ -104,16 +105,32 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
   const theme = resolveTheme(doc.themeId, themes, LIGHT_THEME);
   const scale = useMemo(() => createScale(doc.timescale), [doc.timescale]);
 
-  // Map the right-click x to a snapped day so "Add marker here" lands on it.
-  function rememberContextDate(e: { clientX: number }) {
+  // Map the right-click x/y to a snapped day + the row under it so
+  // "Add task/marker here" land where the user clicked.
+  function rememberContextPoint(e: { clientX: number; clientY: number }) {
     const svg = svgRef.current;
     if (!svg) return;
     const x = e.clientX - svg.getBoundingClientRect().left;
-    markerDateRef.current = formatDay(scale.snap(scale.xToDate(x)));
+    contextDateRef.current = formatDay(scale.snap(scale.xToDate(x)));
+    contextRowIdRef.current = getRowIdAtClientY(e.clientY);
   }
   function addMarkerAtContextDate() {
-    const date = markerDateRef.current ?? doc.timescale.start;
+    const date = contextDateRef.current ?? doc.timescale.start;
     update((d) => addMarker(d, createMarker(date)));
+  }
+  // Add a task on the right-clicked row, starting at the right-clicked day.
+  function addTaskAtContextPoint() {
+    const rows = sortedRows(doc.rows);
+    const rowId = contextRowIdRef.current ?? rows[rows.length - 1]?.id;
+    if (!rowId) return;
+    const start = contextDateRef.current ?? doc.timescale.start;
+    const end = formatDay(addDays(parseDay(start), GANTT_DEFAULTS.newTaskDays));
+    // "move" preserves the full duration while keeping the bar inside the window.
+    const dates = clampBarDates({ start, end }, doc.timescale, "move", false);
+    const bar = createBar(rowId, dates.start, dates.end);
+    update((d) => addBar(d, rowId, bar));
+    setSelectedRowId(rowId);
+    selectBar(bar.id);
   }
 
   const selectedBar = useMemo<Bar | null>(() => {
@@ -264,7 +281,7 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
                   drag.onPointerUp();
                   markerDrag.onPointerUp();
                 }}
-                onContextMenu={rememberContextDate}
+                onContextMenu={rememberContextPoint}
               >
                 <div className="flex" style={{ width }}>
                   <RowList
@@ -310,6 +327,9 @@ export function GanttEditor({ initialFile }: { initialFile: GanttFile }) {
                 <ContextMenuShortcut>⇧⌘Z</ContextMenuShortcut>
               </ContextMenuItem>
               <ContextMenuSeparator />
+              <ContextMenuItem onSelect={addTaskAtContextPoint}>
+                Add task here
+              </ContextMenuItem>
               <ContextMenuItem onSelect={addMarkerAtContextDate}>
                 Add marker here
               </ContextMenuItem>
