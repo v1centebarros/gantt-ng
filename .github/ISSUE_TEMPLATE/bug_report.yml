@@ -1,0 +1,99 @@
+name: Bug report
+description: Report something that isn't working as expected
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Please fill out the sections below so we can reproduce and fix the problem.
+
+        Before submitting, please [search existing issues](https://github.com/v1centebarros/gantt-ng/issues?q=is%3Aissue) to avoid duplicates.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: When I drag a task bar across rows, it snaps back to the original row.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce the behavior?
+      placeholder: |
+        1. Create a new Gantt chart
+        2. Add two tasks on the same row
+        3. Drag one task onto another row
+        4. See the error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or recording
+      description: If applicable, add screenshots or a screen recording to help explain the problem. You can drag files here.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      description: Which browser are you using? gantt-ng runs entirely in the browser.
+      options:
+        - Chrome
+        - Firefox
+        - Safari
+        - Edge
+        - Other (specify below)
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 15, Windows 11, Ubuntu 24.04, ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / URL
+      description: The app version (shown in the editor sidebar footer) or the URL where you ran it.
+      placeholder: 0.0.1 — or https://v1centebarros.github.io/gantt-ng/
+    validations:
+      required: false
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Any relevant errors from the browser developer console (this will be automatically formatted as code).
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: I can reproduce this consistently.
+          required: false
